@@ -1,0 +1,204 @@
+name: Build and push images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # permet de relancer à la main depuis l'UI GitHub
+
+env:
+  PLATFORMS: linux/arm64       # cible Raspberry Pi 4/5 64-bit
+  BFF_IMAGE: investhelper-bff
+  WEB_IMAGE: investhelper-web
+
+# Évite que deux pushs rapprochés sur main se piétinent
+concurrency:
+  group: build-and-push-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # BFF — image Node + Fastify
+  # ---------------------------------------------------------------------------
+  build-bff:
+    name: Build & push BFF
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Short SHA
+        id: vars
+        run: echo "sha=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      # Indispensable pour cross-builder de l'arm64 depuis un runner amd64.
+      # Enregistre l'émulation binfmt arm64 pour que les RUN du runtime stage
+      # (addgroup, chown, …) puissent s'exécuter.
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      # Login séparé : si ça échoue ici, l'erreur est claire (vs noyée dans push-to-registry).
+      - name: Login to registry (sanity check)
+        run: |
+          echo "Registry host: ${{ secrets.REGISTRY_URL }}"
+          echo "${{ secrets.REGISTRY_USERPASSWORD }}" | podman login \
+            --username "${{ secrets.REGISTRY_USERNAME }}" \
+            --password-stdin \
+            "${{ secrets.REGISTRY_URL }}"
+
+      - name: Build BFF image
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.BFF_IMAGE }}
+          tags: latest sha-${{ steps.vars.outputs.sha }}
+          platforms: ${{ env.PLATFORMS }}
+          context: .
+          containerfiles: |
+            ./apps/bff/Dockerfile
+
+      - name: Push BFF to registry
+        id: push-image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_USERPASSWORD }}
+
+      - name: Print pushed BFF image
+        run: echo "Pushed → ${{ steps.push-image.outputs.registry-paths }}"
+
+      - name: Job summary BFF
+        run: |
+          {
+            echo "## 🟢 BFF"
+            echo ""
+            echo "| Tag | Image |"
+            echo "| --- | --- |"
+            echo "| \`latest\` | \`${{ env.BFF_IMAGE }}:latest\` |"
+            echo "| \`sha-${{ steps.vars.outputs.sha }}\` | \`${{ env.BFF_IMAGE }}:sha-${{ steps.vars.outputs.sha }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Web — bundle Vite servi par Caddy
+  # ---------------------------------------------------------------------------
+  build-web:
+    name: Build & push Web
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Short SHA
+        id: vars
+        run: echo "sha=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Login to registry (sanity check)
+        run: |
+          echo "Registry host: ${{ secrets.REGISTRY_URL }}"
+          echo "${{ secrets.REGISTRY_USERPASSWORD }}" | podman login \
+            --username "${{ secrets.REGISTRY_USERNAME }}" \
+            --password-stdin \
+            "${{ secrets.REGISTRY_URL }}"
+
+      # L'image web est config-agnostique : aucun VITE_* en build-arg.
+      # La conf (BFF_URL, SUPABASE_URL, SUPABASE_ANON_KEY) est injectée
+      # au démarrage du conteneur côté Portainer (cf docker-entrypoint.sh).
+      - name: Build Web image
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.WEB_IMAGE }}
+          tags: latest sha-${{ steps.vars.outputs.sha }}
+          platforms: ${{ env.PLATFORMS }}
+          context: .
+          containerfiles: |
+            ./apps/web/Dockerfile
+
+      - name: Push Web to registry
+        id: push-image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_USERPASSWORD }}
+
+      - name: Print pushed Web image
+        run: echo "Pushed → ${{ steps.push-image.outputs.registry-paths }}"
+
+      - name: Job summary Web
+        run: |
+          {
+            echo "## 🟢 Web"
+            echo ""
+            echo "| Tag | Image |"
+            echo "| --- | --- |"
+            echo "| \`latest\` | \`${{ env.WEB_IMAGE }}:latest\` |"
+            echo "| \`sha-${{ steps.vars.outputs.sha }}\` | \`${{ env.WEB_IMAGE }}:sha-${{ steps.vars.outputs.sha }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Déclenche un redeploy Portainer une fois les deux images publiées.
+  # Le webhook URL est généré par Portainer (Stack → Webhooks → Enable).
+  # ---------------------------------------------------------------------------
+  redeploy-portainer:
+    name: Trigger Portainer redeploy
+    runs-on: ubuntu-latest
+    needs: [build-bff, build-web]
+    if: success()
+    steps:
+      - name: Call Portainer stack webhook
+        env:
+          WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "PORTAINER_WEBHOOK_URL n'est pas configuré — skip redeploy."
+            exit 0
+          fi
+          echo "Triggering Portainer redeploy..."
+          curl -fsSL -X POST "$WEBHOOK" \
+            -H 'Content-Length: 0' \
+            --max-time 30
+          echo "✓ Portainer notifié — la stack va pull les nouvelles images."
+
+      - name: Final summary
+        if: always()
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          {
+            echo "## ✅ Déploiement terminé"
+            echo ""
+            echo "**Commit :** [\`$SHORT_SHA\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
+            echo ""
+            echo "### Images publiées"
+            echo ""
+            echo "| Service | Tags |"
+            echo "| --- | --- |"
+            echo "| BFF | \`${{ env.BFF_IMAGE }}:latest\` · \`${{ env.BFF_IMAGE }}:sha-$SHORT_SHA\` |"
+            echo "| Web | \`${{ env.WEB_IMAGE }}:latest\` · \`${{ env.WEB_IMAGE }}:sha-$SHORT_SHA\` |"
+            echo ""
+            echo "### Liens"
+            echo ""
+            echo "- 📦 [Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "- 🚀 Portainer : webhook déclenché (la stack pull + recreate dans les secondes qui viennent)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo ""
+          echo "===================="
+          echo "Images publiées :"
+          echo "  ${{ env.BFF_IMAGE }}:latest"
+          echo "  ${{ env.BFF_IMAGE }}:sha-$SHORT_SHA"
+          echo "  ${{ env.WEB_IMAGE }}:latest"
+          echo "  ${{ env.WEB_IMAGE }}:sha-$SHORT_SHA"
+          echo "===================="

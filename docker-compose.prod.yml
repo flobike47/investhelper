@@ -1,0 +1,82 @@
+# =============================================================================
+# Stack de production InvestHelper — Raspberry Pi (arm64)
+# =============================================================================
+# Usage typique :
+#   1. Sur ta machine de dev (amd64), build les images en arm64 et push-les vers
+#      un registry, OU charge-les en local et transfère via `docker save` / `scp`.
+#   2. Sur la Pi, place ce fichier + un `.env.prod` à côté.
+#   3. `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d`
+#
+# Caddy global (sur la Pi, hors stack) fait la terminaison TLS :
+#   tondomaine.com         → web:80
+#   api.tondomaine.com     → bff:4000
+# =============================================================================
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    # Pas de port mappé : Redis n'est exposé qu'au réseau interne du compose
+    networks:
+      - internal
+
+  bff:
+    image: ${BFF_IMAGE:-investhelper-bff:latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      HOST: 0.0.0.0
+      LOG_LEVEL: info
+
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${CORS_ORIGIN}
+
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY}
+      TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY}
+      NEWSAPI_API_KEY: ${NEWSAPI_API_KEY}
+      FMP_API_KEY: ${FMP_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      # Bind sur l'interface locale uniquement — c'est le reverse proxy
+      # (Caddy/Nginx sur l'host) qui expose en HTTPS vers l'extérieur.
+      - "127.0.0.1:4000:4000"
+    networks:
+      - internal
+
+  web:
+    image: ${WEB_IMAGE:-investhelper-web:latest}
+    restart: unless-stopped
+    environment:
+      # Injectées dans /config.js + <base href> de /index.html au boot
+      # du conteneur (entrypoint sed). Modifiables depuis Portainer sans
+      # rebuild d'image — restart suffit.
+      BASE_PATH: ${BASE_PATH:-/}                # ex: /investhelper/ si servi sous sous-chemin
+      BFF_URL: ${BFF_URL}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - internal
+
+volumes:
+  redis-data:
+
+networks:
+  internal:
+    driver: bridge

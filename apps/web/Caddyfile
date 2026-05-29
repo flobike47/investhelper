@@ -1,0 +1,35 @@
+# Caddyfile minimal pour servir un SPA Vite/React en static.
+# Pas de TLS ici : on suppose qu'un reverse proxy (Caddy/Nginx/Cloudflare) en
+# amont fait la terminaison HTTPS. Si tu veux que Caddy gère HTTPS lui-même,
+# remplace `:80` par ton domaine (`tondomaine.com`) et expose 443.
+
+:80 {
+    root * /srv
+
+    encode zstd gzip
+
+    # SPA fallback : toute route inconnue tombe sur index.html → React Router prend le relais
+    try_files {path} /index.html
+    file_server
+
+    # Cache long pour les assets versionnés Vite (hash dans le nom)
+    @hashed path /assets/*
+    header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+    # Pas de cache pour index.html (sinon les nouveaux déploiements ne sont pas vus)
+    @html path /index.html /
+    header @html Cache-Control "no-cache"
+
+    # /config.js est rempli au boot du conteneur — ne JAMAIS le cacher
+    @config path /config.js
+    header @config Cache-Control "no-store, must-revalidate"
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    }
+}

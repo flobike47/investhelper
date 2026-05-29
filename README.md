@@ -1,146 +1,226 @@
 # InvestHelper
 
-Application web (desktop + mobile) d'aide à l'investissement actions/ETF avec
-données de marché **réelles** et flux d'actualités.
+Application web d'aide à l'investissement actions/ETF avec analyse de sentiment
+news et génération de podcast quotidien.
 
-> Pas de conseils financiers. Les signaux sont calculés à partir de données
-> publiques (Finnhub, NewsAPI). À toi de valider avant d'agir.
+Multi-utilisateur via Supabase + Google OAuth. Architecture en monorepo :
+
+```
+investhelper/
+├── apps/
+│   ├── web/        React 19 + Vite 6 + AntD + TanStack Query + supabase-js (auth)
+│   └── bff/        Fastify + Redis (cache + quotas) + Supabase (DB) + providers
+├── supabase/       Schéma SQL + doc setup (Google OAuth, RLS, clés)
+├── docker-compose.yml   # Redis local
+└── worker/         (déprécié, voir worker/yahoo-proxy/DEPRECATED.md)
+```
+
+## Pourquoi un BFF + Supabase
+
+- **Multi-utilisateur** : login Google via Supabase. Chaque user a sa watchlist,
+  ses catégories podcast et son historique d'épisodes en DB.
+- **Sécurité** : aucune clé API exposée au navigateur. Le frontend ne connaît
+  que l'URL du BFF + le JWT Supabase fraîchement émis.
+- **Cache Redis agressif** : sentiment 6h, thèmes 3h, candles 1h, TTS 30 jours.
+  Économies massives sur Gemini et bande passante.
+- **Quotas par utilisateur** : 200 sentiments/jour, 100 thèmes/jour,
+  20 podcasts/jour, 1000 TTS/jour — protège ta facture Gemini si tu ouvres
+  publiquement.
+- **Fallback centralisé** : Yahoo → FMP → Finnhub pour les recos analystes,
+  géré côté serveur. Le frontend fait UNE requête, le BFF compose.
+- **Cookie+crumb Yahoo** : gérés côté Node (sinon CORS bloque depuis le browser).
 
 ## Stack
 
-- **React 19** + **TypeScript** + **Vite 6**
-- **Ant Design 5** (UI)
-- **TanStack Query** (cache & dédup des appels)
-- **Zustand** (state + persistance localStorage)
-- **Recharts** (graphes)
-- **React Router 7**
-- Axios pour le HTTP, dayjs pour les dates
+| Côté | Tech |
+|------|------|
+| Frontend | React 19, Vite 6, TypeScript, Ant Design 5, TanStack Query, Zustand, Recharts |
+| BFF | Fastify 5, ioredis, axios, dotenv, Pino |
+| Cache | Redis 7 (docker-compose pour dev) |
+| Providers | Finnhub, Twelve Data, FMP, NewsAPI, Yahoo Finance (non officiel), Gemini (analyse + TTS), open.er-api.com (FX) |
 
-## Architecture
+## Démarrage rapide
 
-```
-src/
-├── components/         # UI réutilisable (layout, stocks, common)
-├── pages/              # Une page par route
-├── services/           # Wrappers API (Finnhub, NewsAPI) — point unique d'I/O
-├── hooks/              # React Query hooks
-├── lib/                # Logique pure (indicateurs, scoring)
-├── store/              # Zustand stores
-├── types/              # Types DTO des APIs
-└── constants/          # Configuration horizons d'investissement
-```
+### 1. Supabase (auth + DB)
 
-La couche `services/` isole les appels externes : pour migrer vers un backend
-proxy plus tard, on ne touche qu'à ces deux fichiers.
+Suis [`supabase/README.md`](./supabase/README.md) :
+1. Crée un projet gratuit sur supabase.com
+2. Active Google OAuth (Authentication → Providers → Google)
+3. Exécute `supabase/migrations/001_initial.sql` dans le SQL Editor
+4. Récupère URL + anon key + service_role key + JWT secret
 
-## Démarrage
+### 2. Clés providers (gratuites)
 
-### 1. Installer les dépendances
+- **Finnhub** : https://finnhub.io/register
+- **Twelve Data** : https://twelvedata.com/register
+- **NewsAPI** : https://newsapi.org/register
+- **Financial Modeling Prep** (optionnel) : https://site.financialmodelingprep.com/
+- **Gemini** : https://aistudio.google.com/apikey
 
-```bash
-npm install
-```
+> Gemini TTS (synthèse vocale du podcast) nécessite d'activer le billing
+> sur ta clé AI Studio. Le reste de Gemini est gratuit.
 
-### 2. Obtenir les clés API (gratuites)
-
-- **Finnhub** : https://finnhub.io/register — cotations temps réel, news financières
-- **Twelve Data** : https://twelvedata.com/register — historique OHLC pour les indicateurs techniques (800 req/jour)
-- **NewsAPI** : https://newsapi.org/register — actualités monde + business
-- **Mistral** : https://console.mistral.ai/ — analyse sémantique des news (sentiment par action + extraction des thèmes mondiaux)
-- **Yahoo Finance proxy** (optionnel mais fortement recommandé) — Cloudflare Worker que tu déploies toi-même. Voir [`worker/yahoo-proxy/README.md`](./worker/yahoo-proxy/README.md). Donne accès gratuitement aux recommandations analystes, price targets et earnings — les seules données qu'aucun provider gratuit ne fournit plus en 2024-2025.
-- **Financial Modeling Prep** (optionnel, fallback) : https://site.financialmodelingprep.com/developer/docs — leur free tier ne couvre presque plus les endpoints analystes, donc le Worker Yahoo est plus utile
-
-> Pourquoi tant de providers : Finnhub a progressivement migré ses endpoints
-> les plus utiles (candles, recommandations, price targets) vers son plan
-> payant en 2024. On compose donc avec plusieurs free tiers. L'app dégrade
-> gracieusement si un provider est indisponible : tu vois juste moins de
-> signaux, jamais d'erreur bloquante.
-
-> Note CORS Mistral : si tu vois une erreur "Failed to fetch" sur les
-> appels Mistral, c'est que ton tenant n'autorise pas les appels directs
-> depuis le navigateur. Il faudra mettre un mini proxy (ex: Cloudflare
-> Worker, Vercel Edge Function) qui forward `api.mistral.ai/v1/chat/completions`
-> en ajoutant le header Authorization côté serveur.
-
-### 3. Configurer les clés
-
-Deux options :
-
-**Option A — fichier .env (préféré pour dev local)**
+### 3. Installation
 
 ```bash
-cp .env.example .env
-# édite .env et colle tes clés
+npm install                 # installe tous les workspaces
+docker compose up -d redis  # Redis local sur :6379
 ```
 
-**Option B — directement dans l'UI**
-
-Lance l'app, va dans **Réglages** et colle tes clés. Elles seront persistées
-dans le localStorage.
-
-### 4. Lancer
+### 4. Configuration BFF
 
 ```bash
-npm run dev
+cp apps/bff/.env.example apps/bff/.env
 ```
 
-Ouvre http://localhost:5173
+Édite `apps/bff/.env` avec les valeurs de Supabase + les clés providers.
 
-## Sécurité — important
+### 5. Configuration Web
 
-Cette app appelle Finnhub et NewsAPI directement depuis le navigateur. Les
-clés API sont donc présentes dans le bundle JS livré au client.
+```bash
+cp apps/web/.env.example apps/web/.env
+```
 
-C'est **acceptable pour un usage strictement perso/local**. Avant tout
-déploiement public, il faut :
+Édite `apps/web/.env` :
+```env
+VITE_BFF_URL=http://localhost:4000
+VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJ...
+```
 
-1. Créer un backend (Express, Hono, Cloudflare Workers, etc.)
-2. Y déplacer les wrappers `src/services/finnhub.ts` et `src/services/newsapi.ts`
-3. Faire pointer le frontend vers ce proxy
+### 6. Lancer
 
-L'architecture est faite pour que ça se résume à changer la `baseURL` et
-retirer le paramètre `token` des appels.
+```bash
+npm run dev    # lance BFF (:4000) ET web (:5173) en parallèle
+```
 
-## Fonctionnalités
+Ouvre http://localhost:5173 → "Se connecter avec Google" → l'app est prête.
 
-- **Tableau de bord** :
-  - Vue d'ensemble de la watchlist (prix, signal, sparkline, entrée/sortie technique)
-  - **Analyse par actif** : sentiment des news 14 jours (Mistral), prochains earnings, analog historique
-- **Recommandations pilotées par l'actualité** (univers de ~70 titres curés) :
-  - Mistral lit les news du jour → extrait les 3-5 thèmes dominants (IA, défense, énergie, etc.) avec direction (bullish/bearish)
-  - On sélectionne les titres exposés à ces thèmes
-  - Scoring combiné (signal technique + consensus analystes + biais thématique)
-  - Top 5 avec **plan d'action** : fenêtre d'entrée conditionnelle (pas une date), conditions de sortie chiffrées (cible analyste, stop sur MA), horizon de détention, gestion du risque
-  - **Analog historique** : sur les bougies réelles du titre, médiane des retours observés après des setups similaires (bucket RSI)
-- **Watchlist** : recherche tickers via Finnhub, ajout/suppression
-- **Actualités** : 3 onglets (monde, business, marchés financiers)
-- **Réglages** : horizon court/moyen/long, thème, clés API
+## Stratégie de cache (Redis)
 
-> ⚠️ Aucune prédiction de prix chiffrée n'est faite. Les "prédictions" sont
-> des **synthèses informationnelles** : sentiment news, conditions d'entrée/sortie
-> techniques, statistiques historiques. La décision et le risque restent à toi.
+| Endpoint | TTL | Raison |
+|----------|-----|--------|
+| Quote | 60 s | Prix temps réel |
+| Candles (D) | 1 h | Daily data, change peu intraday |
+| Candles (W/M) | 24 h | Weekly/monthly |
+| Recommandations | 6 h | Mise à jour rare |
+| Price target | 6 h | Idem |
+| Earnings | 12 h | Dates publiées à l'avance |
+| News (toutes) | 30 min | Fraîcheur sans tuer NewsAPI |
+| Sentiment ticker | 6 h | Économise tokens Gemini |
+| Thèmes marché | 3 h | Idem |
+| Script podcast | 24 h | Un par jour par combinaison de catégories |
+| **TTS audio** | **30 jours** | **Déterministe : même texte = même audio** |
+| FX rates | 6 h | Update quotidienne BCE |
 
-Les horizons modifient les indicateurs utilisés :
-- **Court terme** : SMA 20/50 + RSI 14 sur 120 jours
-- **Moyen terme** : SMA 50/200 + RSI 14 sur 1 an
-- **Long terme** : SMA 50/200 sur 3 ans en bougies hebdomadaires
+Le cache TTS est par **chunk** : le frontend découpe le dialogue par tour de
+parole, chaque chunk est haché et caché individuellement. Réécouter un épisode
+ne coûte rien. Générer un nouvel épisode qui contient des phrases déjà vues
+non plus.
+
+## Endpoints BFF
+
+| Méthode | Path | Description |
+|---------|------|-------------|
+| GET | `/health` | Health check, pas d'auth |
+| GET | `/api/quote/:symbol` | Quote temps réel |
+| GET | `/api/profile/:symbol` | Profil entreprise |
+| GET | `/api/candles/:symbol?resolution=D&lookbackDays=120` | Historique OHLC |
+| GET | `/api/recommendations/:symbol` | Recos analystes (Yahoo → FMP → Finnhub) |
+| GET | `/api/price-target/:symbol` | Cible analystes |
+| GET | `/api/earnings/:symbol` | Prochain earning |
+| GET | `/api/search?q=` | Recherche tickers |
+| GET | `/api/news/market` | News marchés FR |
+| GET | `/api/news/world` | Headlines monde FR |
+| GET | `/api/news/business` | Headlines éco FR |
+| GET | `/api/news/company/:symbol?days=14` | News par entreprise |
+| GET | `/api/fx` | Taux EUR → autres devises |
+| GET | `/api/analysis/sentiment/:symbol` | Sentiment Gemini |
+| GET | `/api/analysis/themes?sectors=ai,semis,...` | Thèmes du jour |
+| POST | `/api/podcast/script` | Génère script (body: { categories, targetMinutes }) |
+| POST | `/api/podcast/tts` | Synthèse audio (body: { text, speakers }) |
+
+**Endpoints user** (CRUD préférences) :
+
+| Méthode | Path | Description |
+|---------|------|-------------|
+| GET | `/api/user/me` | Identité utilisateur courante |
+| GET / PUT | `/api/user/settings` | Horizon + thème |
+| GET / POST / DELETE | `/api/user/watchlist[/:ticker]` | Watchlist |
+| GET / POST / DELETE | `/api/user/podcast/categories[/:name]` | Catégories podcast |
+| GET / POST / DELETE | `/api/user/podcast/episodes[/:id]` | Épisodes générés |
+| GET | `/api/user/quotas` | Compteurs des quotas du jour |
+
+Toutes les routes `/api/*` exigent `Authorization: Bearer <Supabase JWT>`.
+
+## Quotas par utilisateur (Redis, fenêtre 24h)
+
+| Bucket | Limite | Endpoints concernés |
+|---|---|---|
+| sentiment | 200/jour | `/api/analysis/sentiment/:symbol` |
+| themes | 100/jour | `/api/analysis/themes` |
+| podcastScript | 20/jour | `/api/podcast/script` |
+| podcastTts | 1000/jour | `/api/podcast/tts` |
+
+Les quotas ne sont décrémentés que sur les **MISS de cache** — un cache hit
+ne consomme rien. Affichés dans Réglages.
 
 ## Scripts
 
-| Commande            | Description                            |
-|---------------------|----------------------------------------|
-| `npm run dev`       | Serveur dev Vite                       |
-| `npm run build`     | Build prod (tsc + vite build)          |
-| `npm run preview`   | Preview du build prod                  |
-| `npm run typecheck` | TypeScript strict, sans émettre        |
+| Commande | Description |
+|----------|-------------|
+| `npm install` | Installe les workspaces |
+| `npm run dev` | Lance BFF + web en parallèle |
+| `npm run dev:bff` | BFF seul (port 4000) |
+| `npm run dev:web` | Web seul (port 5173) |
+| `npm run build` | Build BFF + web |
+| `npm run typecheck` | TS check sur tout |
+| `npm run redis:up` | Démarre Redis via docker compose |
+| `npm run redis:down` | Stoppe Redis |
 
-## Limites du free tier
+## Limites & avertissements
 
-- **Finnhub free** : 60 req/min. Plusieurs endpoints sont passés premium en 2024 (candles, recommandations, price targets, earnings calendar) — l'app les gère en 403/null sans casser.
-- **Twelve Data free** : 8 req/min, 800 req/jour. Candles mis en cache 1h.
-- **FMP free** : 250 req/jour. Recos analystes en cache 6h.
-- **NewsAPI free** : developer only, pas d'usage commercial, 100 req/jour.
-- **Mistral** : pay-as-you-go (~0,001€ par analyse avec `mistral-small-latest`).
+- **Yahoo non officiel** : leurs endpoints peuvent casser. Le code dégrade en
+  silence (renvoie null) si ça arrive.
+- **Pas de conseil financier** : tous les "scores" sont informationnels. La
+  décision et le risque restent à l'utilisateur.
+- **Gemini TTS payant** : ~0,01 € par épisode de 4 min. Active le billing sur
+  ta clé AI Studio si tu veux la voix HD. Sinon, la voix navigateur est gratuite.
 
-Si tu dépasses, soit tu prends un plan payant, soit tu mets en place un proxy
-qui cache plus longtemps côté serveur.
+## Passage en production — checklist
+
+- [x] **Helmet** (security headers) sur le BFF
+- [x] **Body limit** 256 Ko sur Fastify
+- [x] **Validation/bornage** de toutes les entrées (symboles, days, lookback, TTS text, voix, …)
+- [x] **CORS gate** prod : refuse `*` et force `CORS_ORIGIN` explicite quand `NODE_ENV=production`
+- [x] **Error masking** : 5xx renvoie message générique en prod (+ reqId pour corrélation)
+- [x] **Log redaction** des headers Authorization / Cookie
+- [x] **Quotas par user** Redis (sentiment / themes / podcastScript / podcastTts)
+- [x] **Limites par user** côté DB : 100 tickers, 20 catégories, 100 épisodes
+- [x] **Auth JWT Supabase** vérifié via `auth.getUser` (HS256 + ES256), cache Redis 5 min
+- [x] **Shutdown propre** : SIGINT/SIGTERM → Fastify.close + redis.quit
+- [x] **Dockerfile** multi-stage non-root + HEALTHCHECK
+- [x] **SQL schema** committé dans `supabase/migrations/`
+
+### Avant de déployer
+
+1. `NODE_ENV=production` dans l'environnement du BFF
+2. `CORS_ORIGIN=https://ton-domaine.com` (jamais `*`)
+3. TLS terminator devant le BFF (Caddy / Nginx / Cloudflare). Le BFF est HTTP simple.
+4. Redis managé (Upstash / Redis Cloud) ou conteneur séparé avec auth/TLS
+5. Variables Supabase de prod (URL, service_role, anon)
+6. Configure les **URL Configuration** Supabase avec ton vrai domaine
+
+### Déploiement
+
+Voir **[DEPLOY.md](./DEPLOY.md)** — Dockerfiles cross-platform (build sur amd64,
+runtime arm64 sur Raspberry Pi), compose de prod, Caddy + Let's Encrypt.
+
+### À faire ensuite
+
+- [ ] CI GitHub Actions qui build + push automatiquement vers le registry
+- [ ] Cloudflare Tunnel pour HTTPS sans IP publique
+- [ ] Page Portefeuille (positions ouvertes, PRU, P&L latent)
+- [ ] Cron quotidien pour pré-générer le podcast à 7h
+- [ ] Backtest des playbooks sur historique réel
+- [ ] Rate-limit IP (en plus du quota par user) pour le path /api/* non authentifié

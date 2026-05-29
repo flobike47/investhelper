@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <!-- __BASE_PATH__ est substitué par docker-entrypoint.sh au boot du
+         conteneur en fonction de la variable BASE_PATH (ex: /investhelper/).
+         En dev, le plugin Vite remplace par "/" à la volée. -->
+    <base href="__BASE_PATH__" />
+
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="description" content="Tableau de bord d'aide à l'investissement actions et ETF" />
+    <title>InvestHelper</title>
+    <!-- Runtime config injectée au boot conteneur (sed). En dev les
+         placeholders restent et runtimeConfig fallback sur VITE_*. -->
+    <script src="config.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
