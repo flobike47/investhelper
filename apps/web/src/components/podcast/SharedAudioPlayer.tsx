@@ -7,7 +7,7 @@ import {
   SoundOutlined,
 } from '@ant-design/icons';
 import { api } from '@/services/api';
-import { concatBytes, pcmToWavBlob, splitDialogue } from '@/lib/audio';
+import { concatBytes, pcmToWavBlob, processWithConcurrency, splitDialogue } from '@/lib/audio';
 
 const SPEAKERS: Record<string, string> = { Alex: 'Charon', Sophie: 'Kore' };
 
@@ -105,12 +105,12 @@ function HdPlayer({ script, token }: { script: string; token: string }) {
     try {
       const chunks = splitDialogue(script, 800);
       if (chunks.length === 0) throw new Error('Script vide.');
-      const parts: Uint8Array[] = [];
-      for (let i = 0; i < chunks.length; i++) {
-        setProgressText(`Synthèse ${i + 1}/${chunks.length}…`);
-        const pcm = await api.sharedPodcastTts(token, chunks[i], SPEAKERS);
-        parts.push(pcm);
-      }
+      const parts = await processWithConcurrency(
+        chunks,
+        4,
+        (chunk) => api.sharedPodcastTts(token, chunk, SPEAKERS),
+        (done, total) => setProgressText(`Synthèse ${done}/${total}…`),
+      );
       const wav = pcmToWavBlob(concatBytes(parts), 24000, 1);
       setBlobUrl(URL.createObjectURL(wav));
       message.success('Audio HD prêt.');

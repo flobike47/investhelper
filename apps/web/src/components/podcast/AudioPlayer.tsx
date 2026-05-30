@@ -8,7 +8,7 @@ import {
   SoundOutlined,
 } from '@ant-design/icons';
 import { api } from '@/services/api';
-import { concatBytes, pcmToWavBlob, splitDialogue } from '@/lib/audio';
+import { concatBytes, pcmToWavBlob, processWithConcurrency, splitDialogue } from '@/lib/audio';
 
 const SPEAKERS: Record<string, string> = { Alex: 'Charon', Sophie: 'Kore' };
 
@@ -169,12 +169,13 @@ function HdPlayer({ script }: { script: string }) {
     try {
       const chunks = splitDialogue(script, 800);
       if (chunks.length === 0) throw new Error('Script vide.');
-      const audioParts: Uint8Array[] = [];
-      for (let i = 0; i < chunks.length; i++) {
-        setProgressText(`Synthèse vocale ${i + 1}/${chunks.length}…`);
-        const pcm = await api.podcastTts(chunks[i], SPEAKERS);
-        audioParts.push(pcm);
-      }
+      // 4 chunks en parallèle — gain ~3-4× vs séquentiel, sans hammer Gemini
+      const audioParts = await processWithConcurrency(
+        chunks,
+        4,
+        (chunk) => api.podcastTts(chunk, SPEAKERS),
+        (done, total) => setProgressText(`Synthèse vocale ${done}/${total}…`),
+      );
       const merged = concatBytes(audioParts);
       const wav = pcmToWavBlob(merged, 24000, 1);
       setBlobUrl((prev) => {

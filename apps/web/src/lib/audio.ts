@@ -56,6 +56,39 @@ function writeAscii(view: DataView, offset: number, ascii: string) {
 }
 
 /**
+ * Traite des éléments en parallèle avec un cap de concurrence. Préserve
+ * l'ordre des résultats (results[i] correspond toujours à items[i]).
+ *
+ * Utile pour générer les chunks TTS d'un podcast en parallèle sans
+ * hammeriser l'API Gemini (cap à 4 simultanés en général).
+ */
+export async function processWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  handler: (item: T, index: number) => Promise<R>,
+  onProgress?: (done: number, total: number) => void,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  let completed = 0;
+
+  async function worker() {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      results[i] = await handler(items[i], i);
+      completed++;
+      onProgress?.(completed, items.length);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
+  );
+  return results;
+}
+
+/**
  * Découpe un script de dialogue en chunks de taille bornée, sans couper
  * une réplique de hôte en plein milieu. Format attendu en entrée :
  *
