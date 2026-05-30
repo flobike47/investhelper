@@ -18,6 +18,7 @@ import dayjs from 'dayjs';
 import { usePodcastCategories, usePodcastEpisodes } from '@/hooks/usePodcast';
 import { api } from '@/services/api';
 import { AudioPlayer } from '@/components/podcast/AudioPlayer';
+import { ShareEpisode } from '@/components/podcast/ShareEpisode';
 
 const SUGGESTIONS = [
   'Macro / banques centrales',
@@ -188,12 +189,15 @@ export default function Podcast() {
                         · {ep.sources.length} sources
                       </Typography.Text>
                     </Space>
-                    <Popconfirm
-                      title="Supprimer cet épisode ?"
-                      onConfirm={() => deleteEpisode(ep.id)}
-                    >
-                      <Button danger type="text" icon={<DeleteOutlined />} />
-                    </Popconfirm>
+                    <Space>
+                      <ShareEpisode episodeId={ep.id} />
+                      <Popconfirm
+                        title="Supprimer cet épisode ?"
+                        onConfirm={() => deleteEpisode(ep.id)}
+                      >
+                        <Button danger type="text" icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </Space>
                   </Space>
                   <div style={{ marginTop: 12 }}>
                     <AudioPlayer script={ep.script} />

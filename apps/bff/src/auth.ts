@@ -27,7 +27,10 @@ const AUTH_CACHE_TTL = 5 * 60; // 5 min — le token tourne ~ toutes les heures 
  */
 export function registerAuth(app: FastifyInstance) {
   app.addHook('onRequest', async (req, reply) => {
+    // Routes protégées : /api/* sauf /api/public/* (accessibles via token
+    // de partage, pas de Supabase JWT requis).
     if (!req.url.startsWith('/api/')) return;
+    if (req.url.startsWith('/api/public/')) return;
 
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {

@@ -8,6 +8,7 @@ import Watchlist from '@/pages/Watchlist';
 import Podcast from '@/pages/Podcast';
 import Settings from '@/pages/Settings';
 import Login from '@/pages/Login';
+import SharedPodcast from '@/pages/SharedPodcast';
 import { runtimeConfig } from '@/lib/runtimeConfig';
 
 // React Router veut un basename SANS slash de fin (ex: "/investhelper").
@@ -20,6 +21,8 @@ const basename =
 export const router = createBrowserRouter(
   [
     { path: '/login', element: <Login /> },
+    // Page publique : pas de RequireAuth. N'importe qui avec le token peut accéder.
+    { path: '/share/:token', element: <SharedPodcast /> },
     {
       path: '/',
       element: (

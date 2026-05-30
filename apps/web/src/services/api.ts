@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance } from 'axios';
+import { runtimeConfig } from '@/lib/runtimeConfig';
 import type {
   Quote,
   CompanyProfile,
@@ -14,9 +15,14 @@ import type { NewsApiResponse } from '@/types/news';
 /**
  * Client unique vers le BFF. Toutes les requêtes passent par le bearer
  * token. Pas de provider key côté navigateur.
+ *
+ * `baseURL` est initialisé dès le chargement du module à partir de
+ * runtimeConfig (qui lit window.__APP_CONFIG__ rempli avant React).
+ * Le token, lui, est setté plus tard par AuthProvider quand la session
+ * Supabase est résolue.
  */
 
-let baseURL = '';
+let baseURL = runtimeConfig.bffUrl.replace(/\/+$/, '');
 let token = '';
 let client: AxiosInstance | null = null;
 
@@ -102,6 +108,12 @@ export interface QuotaInfo {
   resetSec: number;
 }
 
+export interface ShareInfo {
+  token: string;
+  created_at: string;
+  expires_at: string | null;
+}
+
 export const api = {
   quote: (symbol: string) => get<Quote>(`/quote/${encodeURIComponent(symbol)}`),
 
@@ -175,4 +187,31 @@ export const api = {
     del<{ ok: true }>(`/user/podcast/episodes/${encodeURIComponent(id)}`),
 
   getQuotas: () => get<{ quotas: QuotaInfo[] }>('/user/quotas'),
+
+  // -------- Share épisode (owner side) --------
+  getEpisodeShare: (id: string) =>
+    get<ShareInfo | null>(`/user/podcast/episodes/${encodeURIComponent(id)}/share`),
+  shareEpisode: (id: string) =>
+    post<ShareInfo>(`/user/podcast/episodes/${encodeURIComponent(id)}/share`, {}),
+  revokeShare: (id: string) =>
+    del<{ ok: true }>(`/user/podcast/episodes/${encodeURIComponent(id)}/share`),
+
+  // -------- Lecture publique d'un share --------
+  // Les routes sont sous /api/public/* pour passer par le même handler Caddy
+  // que /api/*. Le BFF skip l'auth pour ce prefix (cf src/auth.ts).
+  getSharedEpisode: (token: string) =>
+    get<PodcastEpisodeDto>(`/public/podcast/${encodeURIComponent(token)}`),
+
+  sharedPodcastTts: async (
+    token: string,
+    text: string,
+    speakers?: Record<string, string>,
+  ): Promise<Uint8Array> => {
+    const res = await getClient().post(
+      `/api/public/podcast/${encodeURIComponent(token)}/tts`,
+      { text, speakers },
+      { responseType: 'arraybuffer' },
+    );
+    return new Uint8Array(res.data as ArrayBuffer);
+  },
 };

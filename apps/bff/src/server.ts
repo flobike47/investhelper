@@ -10,6 +10,7 @@ import { registerAnalysisRoutes } from './routes/analysis.js';
 import { registerPodcastRoutes } from './routes/podcast.js';
 import { registerFxRoutes } from './routes/fx.js';
 import { registerUserRoutes } from './routes/user.js';
+import { registerShareRoutes } from './routes/share.js';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
@@ -95,6 +96,9 @@ export async function buildServer() {
   await app.register(registerPodcastRoutes, { prefix: '/api' });
   await app.register(registerFxRoutes, { prefix: '/api' });
   await app.register(registerUserRoutes, { prefix: '/api' });
+  // Routes share : pas de prefix car elles mélangent /public/* (no auth) et
+  // /api/user/.../share (auth) ; chaque path est complet dans share.ts
+  await app.register(registerShareRoutes);
 
   // Handler global : on log toujours en détail côté serveur (avec req.id),
   // mais en prod on ne renvoie qu'un message générique pour ne pas leaker
