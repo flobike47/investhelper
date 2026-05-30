@@ -85,9 +85,12 @@ export interface PodcastScriptResult {
   durationEstimateSec: number;
 }
 
+export type PodcastDuration = 'auto' | '2' | '4' | '8';
+
 export interface UserSettings {
   horizon: 'short' | 'medium' | 'long';
   theme: 'dark' | 'light';
+  podcastDuration: PodcastDuration;
 }
 
 export interface PodcastEpisodeDto {
@@ -150,7 +153,7 @@ export const api = {
   marketThemes: (sectors: string[]) =>
     get<MarketThemes>('/analysis/themes', { sectors: sectors.join(',') }),
 
-  podcastScript: (categories: string[], targetMinutes = 4) =>
+  podcastScript: (categories: string[], targetMinutes: number | 'auto' = 'auto') =>
     post<PodcastScriptResult>('/podcast/script', { categories, targetMinutes }),
 
   /** Renvoie un Uint8Array de PCM brut 16-bit 24kHz mono. Le caller wrap WAV. */

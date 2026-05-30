@@ -14,7 +14,10 @@ import {
 interface SettingsBody {
   horizon?: 'short' | 'medium' | 'long';
   theme?: 'dark' | 'light';
+  podcastDuration?: 'auto' | '2' | '4' | '8';
 }
+
+const PODCAST_DURATIONS = ['auto', '2', '4', '8'] as const;
 
 interface AddTickerBody { ticker: string }
 interface AddCategoryBody { name: string }
@@ -35,11 +38,15 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const user = requireUser(req);
     const { data, error } = await supabaseAdmin
       .from('user_settings')
-      .select('horizon, theme')
+      .select('horizon, theme, podcast_duration')
       .eq('user_id', user.id)
       .maybeSingle();
     if (error) throw error;
-    return data ?? { horizon: 'medium', theme: 'dark' };
+    return {
+      horizon: data?.horizon ?? 'medium',
+      theme: data?.theme ?? 'dark',
+      podcastDuration: data?.podcast_duration ?? 'auto',
+    };
   });
 
   app.put<{ Body: SettingsBody }>('/user/settings', async (req) => {
@@ -50,11 +57,24 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const theme = req.body?.theme
       ? validateEnum(req.body.theme, ['dark', 'light'] as const, 'dark')
       : undefined;
-    if (!horizon && !theme) throw new BadRequest('Aucune valeur à mettre à jour');
+    const podcastDuration = req.body?.podcastDuration
+      ? validateEnum(req.body.podcastDuration, PODCAST_DURATIONS, 'auto')
+      : undefined;
+    if (!horizon && !theme && !podcastDuration) {
+      throw new BadRequest('Aucune valeur à mettre à jour');
+    }
 
     const { error } = await supabaseAdmin
       .from('user_settings')
-      .upsert({ user_id: user.id, horizon, theme }, { onConflict: 'user_id' });
+      .upsert(
+        {
+          user_id: user.id,
+          horizon,
+          theme,
+          podcast_duration: podcastDuration,
+        },
+        { onConflict: 'user_id' },
+      );
     if (error) throw error;
     return { ok: true };
   });

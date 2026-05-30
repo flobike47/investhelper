@@ -9,6 +9,7 @@ import {
   List,
   message,
   Popconfirm,
+  Segmented,
   Space,
   Tag,
   Typography,
@@ -16,7 +17,8 @@ import {
 import { CloseOutlined, DeleteOutlined, PlusOutlined, SoundOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { usePodcastCategories, usePodcastEpisodes } from '@/hooks/usePodcast';
-import { api } from '@/services/api';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { api, type PodcastDuration } from '@/services/api';
 import { AudioPlayer } from '@/components/podcast/AudioPlayer';
 import { ShareEpisode } from '@/components/podcast/ShareEpisode';
 
@@ -35,9 +37,21 @@ const SUGGESTIONS = [
 export default function Podcast() {
   const { categories, add: addCategory, remove: removeCategory } = usePodcastCategories();
   const { episodes, add: addEpisode, remove: deleteEpisode } = usePodcastEpisodes();
+  const settings = useUserSettings();
 
   const [newCat, setNewCat] = useState('');
   const [generating, setGenerating] = useState(false);
+  // Override par épisode — par défaut on prend la valeur des settings
+  const [duration, setDuration] = useState<PodcastDuration>(settings.podcastDuration);
+
+  // Re-sync si le settings serveur change pendant qu'on est sur la page
+  if (
+    settings.podcastDuration !== duration &&
+    // ne pas écraser si l'user a explicitement choisi
+    duration === settings.podcastDuration
+  ) {
+    setDuration(settings.podcastDuration);
+  }
 
   const onGenerate = async () => {
     if (categories.length === 0) {
@@ -46,7 +60,8 @@ export default function Podcast() {
     }
     setGenerating(true);
     try {
-      const result = await api.podcastScript(categories, 4);
+      const target: number | 'auto' = duration === 'auto' ? 'auto' : Number(duration);
+      const result = await api.podcastScript(categories, target);
       await addEpisode({
         date: dayjs().format('YYYY-MM-DD'),
         categories: [...categories],
@@ -133,24 +148,39 @@ export default function Podcast() {
         </Card>
 
         <Card>
-          <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-            <div>
-              <Typography.Text strong>Générer l'épisode du jour</Typography.Text>
-              <br />
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                ~4 minutes. Utilise les news des dernières 24h pour les catégories ci-dessus.
-              </Typography.Text>
-            </div>
-            <Button
-              type="primary"
-              size="large"
-              icon={<SoundOutlined />}
-              loading={generating}
-              onClick={onGenerate}
-              disabled={categories.length === 0}
-            >
-              Générer
-            </Button>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+              <div>
+                <Typography.Text strong>Générer l'épisode du jour</Typography.Text>
+                <br />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {duration === 'auto'
+                    ? 'Durée auto : adaptée au volume de news.'
+                    : `~${duration} minutes.`}{' '}
+                  Utilise les news des dernières 24h.
+                </Typography.Text>
+              </div>
+              <Button
+                type="primary"
+                size="large"
+                icon={<SoundOutlined />}
+                loading={generating}
+                onClick={onGenerate}
+                disabled={categories.length === 0}
+              >
+                Générer
+              </Button>
+            </Space>
+            <Segmented<PodcastDuration>
+              value={duration}
+              onChange={(v) => setDuration(v)}
+              options={[
+                { label: 'Auto', value: 'auto' },
+                { label: '2 min', value: '2' },
+                { label: '4 min', value: '4' },
+                { label: '8 min', value: '8' },
+              ]}
+            />
           </Space>
           {generating && (
             <Alert

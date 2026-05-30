@@ -25,7 +25,23 @@ const DEFAULT_SPEAKERS: Record<string, string> = { Alex: 'Charon', Sophie: 'Kore
 
 interface ScriptBody {
   categories: string[];
-  targetMinutes?: number;
+  /**
+   * Durée cible : nombre fixe en minutes (2-10), ou 'auto' pour laisser
+   * le BFF calculer en fonction du volume de news disponibles.
+   * Undefined = 'auto'.
+   */
+  targetMinutes?: number | 'auto';
+}
+
+const MAX_PODCAST_MINUTES = 10;
+
+/** Calcule la durée cible (min) à partir du nombre total d'articles. */
+function autoDurationMinutes(articleCount: number): number {
+  // 0-10 articles → 2 min, 11-25 → 4 min, 26-40 → 6 min, 41+ → 8 min
+  if (articleCount <= 10) return 2;
+  if (articleCount <= 25) return 4;
+  if (articleCount <= 40) return 6;
+  return 8;
 }
 
 interface ScriptResult {
@@ -70,10 +86,19 @@ export async function registerPodcastRoutes(app: FastifyInstance) {
   app.post<{ Body: ScriptBody }>('/podcast/script', async (req) => {
     const user = requireUser(req);
     const categories = validateCategories(req.body?.categories);
-    const minutes = clampInt(req.body?.targetMinutes, 4, 1, 10);
 
+    // Mode 'auto' = on décide après avoir vu les news. Sinon on clamp la valeur.
+    const rawTarget = req.body?.targetMinutes;
+    const isAuto = rawTarget === undefined || rawTarget === 'auto';
+    const manualMinutes = isAuto ? null : clampInt(rawTarget, 4, 1, MAX_PODCAST_MINUTES);
+
+    // Le cache inclut la durée (ou 'auto' pour cache distinct par catégorie)
     const cacheKey = `podcast:script:${hashKey(
-      JSON.stringify({ categories: [...categories].sort(), minutes, day: new Date().toISOString().slice(0, 10) }),
+      JSON.stringify({
+        categories: [...categories].sort(),
+        duration: isAuto ? 'auto' : manualMinutes,
+        day: new Date().toISOString().slice(0, 10),
+      }),
     )}`;
 
     return cachedJson<ScriptResult>(cacheKey, TTL.podcastScript, async () => {
@@ -92,6 +117,8 @@ export async function registerPodcastRoutes(app: FastifyInstance) {
       if (allArticles.length === 0) {
         throw new BadRequest("Aucun article trouvé pour les catégories choisies.");
       }
+      // Décision finale de la durée maintenant qu'on a le compte d'articles
+      const minutes = isAuto ? autoDurationMinutes(allArticles.length) : manualMinutes!;
       const sources = [...new Set(allArticles.map((a) => a.url))];
       const corpus = results
         .filter((r) => r.articles.length > 0)

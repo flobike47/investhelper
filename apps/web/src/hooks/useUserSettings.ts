@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/services/api';
+import { api, type PodcastDuration, type UserSettings } from '@/services/api';
 import { useLocalSettings } from '@/store/localSettings';
 import { useAuth } from '@/lib/auth';
 import type { Horizon } from '@/constants/horizons';
@@ -23,7 +23,6 @@ export function useUserSettings() {
     staleTime: 5 * 60_000,
   });
 
-  // Réplique côté local dès qu'on a une réponse — anti-flicker au prochain reload
   useEffect(() => {
     if (query.data) {
       if (query.data.horizon !== local.horizon) local.setHorizon(query.data.horizon);
@@ -33,12 +32,12 @@ export function useUserSettings() {
   }, [query.data]);
 
   const mutate = useMutation({
-    mutationFn: (patch: { horizon?: Horizon; theme?: 'dark' | 'light' }) =>
-      api.saveSettings(patch),
+    mutationFn: (patch: Partial<UserSettings>) => api.saveSettings(patch),
     onSuccess: (_d, patch) => {
-      qc.setQueryData(KEY, (prev: { horizon: Horizon; theme: 'dark' | 'light' } | undefined) => ({
+      qc.setQueryData(KEY, (prev: UserSettings | undefined) => ({
         horizon: patch.horizon ?? prev?.horizon ?? 'medium',
         theme: patch.theme ?? prev?.theme ?? 'dark',
+        podcastDuration: patch.podcastDuration ?? prev?.podcastDuration ?? 'auto',
       }));
       if (patch.horizon) local.setHorizon(patch.horizon);
       if (patch.theme) local.setTheme(patch.theme);
@@ -48,8 +47,10 @@ export function useUserSettings() {
   return {
     horizon: query.data?.horizon ?? local.horizon,
     theme: query.data?.theme ?? local.theme,
+    podcastDuration: query.data?.podcastDuration ?? 'auto',
     loading: query.isLoading,
     setHorizon: (h: Horizon) => mutate.mutate({ horizon: h }),
     setTheme: (t: 'dark' | 'light') => mutate.mutate({ theme: t }),
+    setPodcastDuration: (d: PodcastDuration) => mutate.mutate({ podcastDuration: d }),
   };
 }
