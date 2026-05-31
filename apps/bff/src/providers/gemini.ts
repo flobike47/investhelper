@@ -24,6 +24,17 @@ interface TextOpts {
   temperature?: number;
   jsonMode?: boolean;
   maxOutputTokens?: number;
+  /**
+   * Budget pour la "thinking" (raisonnement interne) de Gemini 2.5.
+   * - undefined : default Google (thinking auto-budget)
+   * - 0         : désactive le thinking → 100% du budget va dans l'output
+   * - >0        : tokens max alloués au thinking, le reste va à l'output
+   *
+   * À mettre à 0 pour les tâches "génération texte créative" (script podcast)
+   * où on n'a pas besoin de raisonnement multi-étapes — sinon une grosse
+   * partie du maxOutputTokens part en thinking et le texte final est tronqué.
+   */
+  thinkingBudget?: number;
 }
 
 async function generate(system: string | undefined, user: string, opts: TextOpts = {}): Promise<string> {
@@ -33,6 +44,9 @@ async function generate(system: string | undefined, user: string, opts: TextOpts
       temperature: opts.temperature ?? 0.2,
       ...(opts.maxOutputTokens ? { maxOutputTokens: opts.maxOutputTokens } : {}),
       ...(opts.jsonMode ? { responseMimeType: 'application/json' } : {}),
+      ...(opts.thinkingBudget !== undefined
+        ? { thinkingConfig: { thinkingBudget: opts.thinkingBudget } }
+        : {}),
     },
   };
   if (system) body.systemInstruction = { parts: [{ text: system }] };
@@ -44,8 +58,19 @@ async function generate(system: string | undefined, user: string, opts: TextOpts
   if (res.data.promptFeedback?.blockReason) {
     throw new ProviderError(`Gemini blocked: ${res.data.promptFeedback.blockReason}`, 400, 'Gemini');
   }
-  const text = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const candidate = res.data.candidates?.[0];
+  const text = candidate?.content?.parts?.[0]?.text;
   if (!text) throw new ProviderError('Réponse Gemini vide.', 502, 'Gemini');
+
+  // Détection de troncature : log warning si Gemini s'est arrêté pour
+  // autre chose que STOP (typiquement MAX_TOKENS = script tronqué).
+  const finishReason = (candidate as { finishReason?: string }).finishReason;
+  if (finishReason && finishReason !== 'STOP') {
+    console.warn(
+      `[gemini] réponse non terminée — finishReason=${finishReason}, ` +
+        `model=${model}, maxOutputTokens=${opts.maxOutputTokens ?? 'default'}`,
+    );
+  }
   return text;
 }
 

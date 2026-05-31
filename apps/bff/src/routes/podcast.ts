@@ -157,7 +157,11 @@ Format STRICT :
 - Alternance fréquente : pas plus de 3-4 phrases d'affilée par animateur.
 - Cite les sources quand pertinent.
 - Rends UNIQUEMENT le script.`,
-        { temperature: 0.5, maxOutputTokens: 4000 },
+        {
+          temperature: 0.5,
+          maxOutputTokens: 8000, // 8 min ≈ 1300 mots ≈ 1700-2200 tokens, marge x3
+          thinkingBudget: 0,    // génération créative, pas de raisonnement nécessaire
+        },
       );
 
       const wordCount = script.split(/\s+/).filter(Boolean).length;
