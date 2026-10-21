@@ -1,0 +1,46 @@
+/**
+ * Utilitaires de test partagés (importés uniquement par les fichiers *.test.tsx).
+ * Rend un composant dans les mêmes fournisseurs que l'app : QueryClient + App antd.
+ */
+import '@testing-library/jest-dom/vitest';
+import type { ReactElement } from 'react';
+import { afterEach } from 'vitest';
+import { cleanup, render } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { App as AntApp, ConfigProvider } from 'antd';
+
+// Sans `globals: true`, Testing Library ne nettoie pas le DOM tout seul
+afterEach(() => cleanup());
+
+// jsdom n'implémente pas matchMedia, utilisé par les composants responsives d'antd
+if (!window.matchMedia) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+}
+
+export function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+}
+
+export function renderWithProviders(ui: ReactElement, client = createTestQueryClient()) {
+  const wrap = (node: ReactElement) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <AntApp>
+        <QueryClientProvider client={client}>{node}</QueryClientProvider>
+      </AntApp>
+    </ConfigProvider>
+  );
+  const utils = render(wrap(ui));
+  return { ...utils, client, rerender: (next: ReactElement) => utils.rerender(wrap(next)) };
+}

@@ -23,12 +23,13 @@ export function useUserSettings() {
     staleTime: 5 * 60_000,
   });
 
+  // Miroir local des réglages serveur. Lecture via getState() : l'effet ne
+  // dépend que des données serveur, pas des setters du store.
   useEffect(() => {
-    if (query.data) {
-      if (query.data.horizon !== local.horizon) local.setHorizon(query.data.horizon);
-      if (query.data.theme !== local.theme) local.setTheme(query.data.theme);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!query.data) return;
+    const store = useLocalSettings.getState();
+    if (query.data.horizon !== store.horizon) store.setHorizon(query.data.horizon);
+    if (query.data.theme !== store.theme) store.setTheme(query.data.theme);
   }, [query.data]);
 
   const mutate = useMutation({
@@ -39,8 +40,9 @@ export function useUserSettings() {
         theme: patch.theme ?? prev?.theme ?? 'dark',
         podcastDuration: patch.podcastDuration ?? prev?.podcastDuration ?? 'auto',
       }));
-      if (patch.horizon) local.setHorizon(patch.horizon);
-      if (patch.theme) local.setTheme(patch.theme);
+      const store = useLocalSettings.getState();
+      if (patch.horizon) store.setHorizon(patch.horizon);
+      if (patch.theme) store.setTheme(patch.theme);
     },
   });
 
@@ -49,8 +51,13 @@ export function useUserSettings() {
     theme: query.data?.theme ?? local.theme,
     podcastDuration: query.data?.podcastDuration ?? 'auto',
     loading: query.isLoading,
+    /** Erreur de chargement des réglages serveur (ApiError). */
+    error: query.error,
+    saving: mutate.isPending,
     setHorizon: (h: Horizon) => mutate.mutate({ horizon: h }),
     setTheme: (t: 'dark' | 'light') => mutate.mutate({ theme: t }),
     setPodcastDuration: (d: PodcastDuration) => mutate.mutate({ podcastDuration: d }),
+    /** Enregistre plusieurs champs en une requête ; résout une fois confirmé par le serveur. */
+    save: (patch: Partial<UserSettings>) => mutate.mutateAsync(patch),
   };
 }
