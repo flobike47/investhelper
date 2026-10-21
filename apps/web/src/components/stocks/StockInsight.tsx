@@ -8,21 +8,8 @@ import { HORIZONS, type Horizon } from '@/constants/horizons';
 import { lastDefined, rsi } from '@/lib/indicators';
 import { describeError } from '@/lib/watchlistSummary';
 import { formatSignedPct } from '@/lib/format';
+import { SENTIMENT_COLORS, SENTIMENT_LABELS } from './sentiment';
 import { findRsiAnalog, pickBucketFromRsi } from '@/lib/historicalAnalog';
-
-const SENTIMENT_COLORS = {
-  positive: 'green',
-  negative: 'red',
-  neutral: 'default',
-  mixed: 'gold',
-} as const;
-
-const SENTIMENT_LABELS = {
-  positive: 'Positif',
-  negative: 'Négatif',
-  neutral: 'Neutre',
-  mixed: 'Mitigé',
-} as const;
 
 function horizonToAnalogDays(h: Horizon): number {
   return h === 'short' ? 21 : h === 'medium' ? 63 : 252;
