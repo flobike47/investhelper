@@ -56,6 +56,20 @@ beforeEach(async () => {
   });
 });
 
+describe('format des erreurs', () => {
+  // Régression : le setErrorHandler était déclaré après les routes et ne
+  // s'appliquait à aucune d'elles.
+  it.each([
+    ['GET', '/api/public/podcast/a$b', 400],
+    ['GET', '/api/public/podcast/Unknown123456789', 404],
+    ['GET', '/route/inexistante', 404],
+  ] as const)('%s %s → { error, reqId } avec %i', async (method, url, status) => {
+    const res = await app.inject({ method, url });
+    expect(res.statusCode).toBe(status);
+    expect(Object.keys(res.json()).sort()).toEqual(['error', 'reqId']);
+  });
+});
+
 describe('GET /api/public/podcast/:token', () => {
   it("renvoie l'épisode et le nombre de chunks TTS sans authentification", async () => {
     const res = await app.inject({ method: 'GET', url: `/api/public/podcast/${SHARE_TOKEN}` });

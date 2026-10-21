@@ -88,18 +88,11 @@ export async function buildServer() {
     done();
   });
 
-  app.get('/health', async () => ({ ok: true, ts: Date.now() }));
-
-  await app.register(registerMarketRoutes, { prefix: '/api' });
-  await app.register(registerNewsRoutes, { prefix: '/api' });
-  await app.register(registerAnalysisRoutes, { prefix: '/api' });
-  await app.register(registerPodcastRoutes, { prefix: '/api' });
-  await app.register(registerFxRoutes, { prefix: '/api' });
-  await app.register(registerUserRoutes, { prefix: '/api' });
-  // Routes share : pas de prefix car elles mélangent /public/* (no auth) et
-  // /api/user/.../share (auth) ; chaque path est complet dans share.ts
-  await app.register(registerShareRoutes);
-
+  // ⚠️ Doit être déclaré AVANT app.register(routes) : chaque plugin capture
+  // le handler d'erreur au moment de son enregistrement. Déclaré après, il
+  // n'était appliqué à aucune route (format Fastify par défaut, messages 5xx
+  // non masqués en prod).
+  //
   // Handler global : on log toujours en détail côté serveur (avec req.id),
   // mais en prod on ne renvoie qu'un message générique pour ne pas leaker
   // d'URL de provider, de stack, ou de header dans l'erreur axios.
@@ -135,6 +128,18 @@ export async function buildServer() {
   app.setNotFoundHandler((req, reply) => {
     reply.code(404).send({ error: 'Not found', reqId: req.id });
   });
+
+  app.get('/health', async () => ({ ok: true, ts: Date.now() }));
+
+  await app.register(registerMarketRoutes, { prefix: '/api' });
+  await app.register(registerNewsRoutes, { prefix: '/api' });
+  await app.register(registerAnalysisRoutes, { prefix: '/api' });
+  await app.register(registerPodcastRoutes, { prefix: '/api' });
+  await app.register(registerFxRoutes, { prefix: '/api' });
+  await app.register(registerUserRoutes, { prefix: '/api' });
+  // Routes share : pas de prefix car elles mélangent /public/* (no auth) et
+  // /api/user/.../share (auth) ; chaque path est complet dans share.ts
+  await app.register(registerShareRoutes);
 
   return app;
 }
