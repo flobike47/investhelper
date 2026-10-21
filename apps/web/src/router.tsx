@@ -59,12 +59,30 @@ export const router = createBrowserRouter(
           // layout (menu et header restent utilisables) au lieu de le remplacer.
           errorElement: <RouteError />,
           children: [
-            { index: true, lazy: page(() => import('@/pages/Dashboard')) },
-            { path: 'recommendations', lazy: page(() => import('@/pages/Recommendations')) },
-            { path: 'watchlist', lazy: page(() => import('@/pages/Watchlist')) },
+            // Watchlist (accueil) et Idées : liste + fiche d'un actif en route
+            // enfant (panneau sur mobile, colonne sur PC). L'URL de la fiche
+            // est partageable et le bouton retour la referme.
+            {
+              lazy: page(() => import('@/pages/Home')),
+              children: [
+                { index: true },
+                { path: 'asset/:symbol', lazy: page(() => import('@/pages/Asset')) },
+              ],
+            },
+            {
+              path: 'ideas',
+              lazy: page(() => import('@/pages/Ideas')),
+              children: [
+                { index: true },
+                { path: 'asset/:symbol', lazy: page(() => import('@/pages/Asset')) },
+              ],
+            },
             { path: 'news', lazy: page(() => import('@/pages/News')) },
             { path: 'podcast', lazy: page(() => import('@/pages/Podcast')) },
             { path: 'settings', lazy: page(() => import('@/pages/Settings')) },
+            // Anciennes adresses (favoris, liens partagés)
+            { path: 'recommendations', element: <Navigate to="/ideas" replace /> },
+            { path: 'watchlist', element: <Navigate to="/" replace /> },
             { path: '*', element: <Navigate to="/" replace /> },
           ],
         },

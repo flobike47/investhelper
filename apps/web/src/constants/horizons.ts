@@ -45,3 +45,8 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
 };
 
 export const HORIZON_LIST: HorizonConfig[] = [HORIZONS.short, HORIZONS.medium, HORIZONS.long];
+
+/** Fenêtre (en séances) de l'analogue historique pour un horizon : ~1 mois, ~3 mois, ~1 an. */
+export function analogDaysFor(h: Horizon): number {
+  return h === 'short' ? 21 : h === 'medium' ? 63 : 252;
+}
