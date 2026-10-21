@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/common/RequireAuth';
+import { RouteError } from '@/components/common/RouteError';
 import Dashboard from '@/pages/Dashboard';
 import Recommendations from '@/pages/Recommendations';
 import News from '@/pages/News';
@@ -20,9 +21,13 @@ const basename =
 
 export const router = createBrowserRouter(
   [
-    { path: '/login', element: <Login /> },
+    { path: '/login', element: <Login />, errorElement: <RouteError fullPage /> },
     // Page publique : pas de RequireAuth. N'importe qui avec le token peut accéder.
-    { path: '/share/:token', element: <SharedPodcast /> },
+    {
+      path: '/share/:token',
+      element: <SharedPodcast />,
+      errorElement: <RouteError fullPage />,
+    },
     {
       path: '/',
       element: (
@@ -30,14 +35,23 @@ export const router = createBrowserRouter(
           <AppLayout />
         </RequireAuth>
       ),
+      // Filet de sécurité si le layout lui-même plante.
+      errorElement: <RouteError fullPage />,
       children: [
-        { index: true, element: <Dashboard /> },
-        { path: 'recommendations', element: <Recommendations /> },
-        { path: 'watchlist', element: <Watchlist /> },
-        { path: 'news', element: <News /> },
-        { path: 'podcast', element: <Podcast /> },
-        { path: 'settings', element: <Settings /> },
-        { path: '*', element: <Navigate to="/" replace /> },
+        {
+          // Route sans chemin : une exception dans une page s'affiche DANS le
+          // layout (menu et header restent utilisables) au lieu de le remplacer.
+          errorElement: <RouteError />,
+          children: [
+            { index: true, element: <Dashboard /> },
+            { path: 'recommendations', element: <Recommendations /> },
+            { path: 'watchlist', element: <Watchlist /> },
+            { path: 'news', element: <News /> },
+            { path: 'podcast', element: <Podcast /> },
+            { path: 'settings', element: <Settings /> },
+            { path: '*', element: <Navigate to="/" replace /> },
+          ],
+        },
       ],
     },
   ],
