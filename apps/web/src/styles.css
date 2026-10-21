@@ -4,6 +4,15 @@ html, body, #root {
   height: 100%;
 }
 
+html {
+  /* Pas de voile gris/bleu au tap (iOS, Android) : antd fournit déjà son
+     propre retour visuel (:active, wave). */
+  -webkit-tap-highlight-color: transparent;
+  /* Pas d'agrandissement automatique du texte en paysage. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
@@ -15,4 +24,83 @@ body {
 
 a {
   color: inherit;
+}
+
+/* ---------- Utilitaires ---------- */
+
+/* Chiffres à chasse fixe : les colonnes de prix / % ne « dansent » pas
+   quand les valeurs changent. Utilisé via className="tabular-nums". */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Texte lu par les lecteurs d'écran mais invisible à l'écran. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Tactile ---------- */
+
+/* Tap immédiat : pas d'attente du double-tap-zoom (≈300 ms) sur les
+   contrôles. Le zoom par pincement reste disponible. */
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+/* Un appui long sur un bouton ne sélectionne pas son libellé. Les liens et le
+   texte courant restent sélectionnables (adresses, messages d'erreur…). */
+button,
+[role='button'] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* iOS zoome sur un champ dont la police fait moins de 16px, sans dézoomer
+   ensuite. On corrige la cause au lieu de bloquer le zoom (maximum-scale).
+   !important justifié : les styles antd (CSS-in-JS) sont injectés après cette
+   feuille avec des sélecteurs plus spécifiques
+   (ex. .ant-select-single:not(.ant-select-customize-input) .ant-select-selector
+   .ant-select-selection-search-input). Limité aux écrans tactiles. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select,
+  .ant-input,
+  .ant-input-affix-wrapper input,
+  .ant-input-number-input,
+  .ant-select-selection-search-input,
+  .ant-picker-input > input,
+  .ant-mentions > textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Au toucher, :hover reste « collé » après le tap : une carte hoverable
+   garderait son ombre portée. On neutralise l'effet sans pointeur survolant.
+   --ih-color-border-secondary est posé par lib/documentTheme.ts. */
+@media (hover: none) {
+  .ant-card.ant-card-hoverable:hover {
+    box-shadow: none;
+    border-color: var(--ih-color-border-secondary, rgba(128, 128, 128, 0.2));
+  }
+}
+
+/* ---------- Animations réduites ---------- */
+
+/* Les transitions antd sont coupées via le token `motion` (App.tsx) ; ici on
+   couvre le défilement animé natif. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
