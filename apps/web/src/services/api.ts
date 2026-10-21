@@ -107,6 +107,11 @@ export interface PodcastEpisodeDto {
   createdAt: string;
 }
 
+export interface SharedEpisodeDto extends PodcastEpisodeDto {
+  /** Nombre de chunks audio HD à demander à /tts (index 0..n-1). */
+  ttsChunkCount: number;
+}
+
 export interface QuotaInfo {
   bucket: 'sentiment' | 'themes' | 'podcastScript' | 'podcastTts';
   used: number;
@@ -207,16 +212,13 @@ export const api = {
   // Les routes sont sous /api/public/* pour passer par le même handler Caddy
   // que /api/*. Le BFF skip l'auth pour ce prefix (cf src/auth.ts).
   getSharedEpisode: (token: string) =>
-    get<PodcastEpisodeDto>(`/public/podcast/${encodeURIComponent(token)}`),
+    get<SharedEpisodeDto>(`/public/podcast/${encodeURIComponent(token)}`),
 
-  sharedPodcastTts: async (
-    token: string,
-    text: string,
-    speakers?: Record<string, string>,
-  ): Promise<Uint8Array> => {
+  /** Le serveur découpe lui-même le script : on ne demande qu'un index de chunk. */
+  sharedPodcastTts: async (token: string, chunkIndex: number): Promise<Uint8Array> => {
     const res = await getClient().post(
       `/api/public/podcast/${encodeURIComponent(token)}/tts`,
-      { text, speakers },
+      { chunkIndex },
       { responseType: 'arraybuffer', timeout: GENERATION_TIMEOUT_MS },
     );
     return new Uint8Array(res.data as ArrayBuffer);

@@ -5,9 +5,31 @@
  * 400 à répétition tout en empêchant les abus de cache.
  */
 
-export class BadRequest extends Error {
-  statusCode = 400;
-  constructor(message: string) { super(message); }
+/** Erreur HTTP typée : le setErrorHandler global la formate en { error, reqId }. */
+export class HttpError extends Error {
+  constructor(public statusCode: number, message: string) { super(message); }
+}
+
+export class BadRequest extends HttpError {
+  constructor(message: string) { super(400, message); }
+}
+
+export class Unauthorized extends HttpError {
+  constructor(message = 'Unauthorized') { super(401, message); }
+}
+
+export class NotFound extends HttpError {
+  constructor(message = 'Not found') { super(404, message); }
+}
+
+export class Gone extends HttpError {
+  constructor(message = 'Gone') { super(410, message); }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function validateUuid(input: unknown, name = 'id'): string {
+  if (typeof input !== 'string' || !UUID_RE.test(input)) throw new BadRequest(`${name} invalide`);
+  return input;
 }
 
 /** Valide un symbole boursier : 1-20 caractères, [A-Z0-9.-] uniquement. */
