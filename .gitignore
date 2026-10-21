@@ -21,3 +21,6 @@ pnpm-debug.log*
 
 # BFF build output
 apps/bff/dist
+
+# Worktrees des agents Claude Code
+.claude/worktrees/

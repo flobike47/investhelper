@@ -1,7 +1,7 @@
 /**
  * Univers curé de tickers réels classés par secteur thématique.
  * Utilisé par le moteur de recommandations pour mapper les thèmes
- * d'actualité (extraits par Mistral) vers des actifs investissables.
+ * d'actualité (extraits par Gemini) vers des actifs investissables.
  *
  * Tous les symboles sont des tickers valides sur leur marché respectif
  * (US sans suffixe, Europe avec suffixe Yahoo/Twelve Data).
