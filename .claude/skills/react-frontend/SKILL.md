@@ -29,7 +29,7 @@ description: Développer ou relire le frontend InvestHelper (apps/web — React 
 ## React 19
 - `useEffect` : toujours un cleanup (abonnements, `speechSynthesis.cancel()`, `URL.revokeObjectURL`, `AbortController`). StrictMode monte deux fois en dev : un effet non idempotent = bug visible.
 - Pas de `useEffect` pour dériver un état d'un autre état ou de props → calcul direct ou `useMemo`. Pas d'effet pour réagir à un événement utilisateur → handler.
-- Dépendances d'effet exactes (ESLint `react-hooks/exhaustive-deps` doit passer sans `disable`). Attention aux effets qui dépendent d'un état qu'ils modifient (cf. `selectedVoice` dans `AudioPlayer`).
+- Dépendances d'effet exactes (ESLint `react-hooks/exhaustive-deps` doit passer sans `disable`). Attention aux effets qui dépendent d'un état qu'ils modifient.
 - `useRef` initialisé par un calcul coûteux (`useRef(splitForTts(script))`) recalcule à chaque render → `useMemo` ou init paresseuse.
 - Listes : `key` stable issue de la donnée (id, ticker), jamais l'index si la liste est réordonnable.
 - Ajouter un **Error Boundary** par route (React Router `errorElement`) : une exception dans un graphique ne doit pas blanchir toute l'app.
@@ -43,6 +43,18 @@ description: Développer ou relire le frontend InvestHelper (apps/web — React 
 - Code-splitting des pages lourdes (`lazy()` sur Podcast, Recommendations — recharts est gros).
 - `useQueries` sur N tickers × 4 requêtes : garder N borné, et envisager un endpoint batch côté BFF si N grandit.
 - Pas de `JSON.stringify` / tri dans le render sur de gros tableaux sans `useMemo`.
+
+## Structure de l'interface
+- Navigation : 4 sections (`components/layout/nav.tsx`) — barre d'onglets en bas sous `md`, barre latérale au-delà (`AppLayout`). Le compte s'ouvre par l'avatar (`AccountButton`), pas par un onglet. `useIsMobile()` est la seule source du point de rupture.
+- Fiche d'un actif = route enfant `…/asset/:symbol` (Watchlist et Idées) via `MasterDetail` : panneau du bas sur mobile, colonne sur PC. Ne pas recréer de fiche ailleurs.
+- Lecteur podcast global : `lib/player.ts` (moteur testable, hors React) + `hooks/usePlayer.ts` (instance unique). Toute lecture d'épisode passe par `player.load()` ; ne jamais monter un second lecteur `speechSynthesis` dans une page privée.
+- Chaque page commence par `PageHeader` et respecte les zones sûres iOS (`env(safe-area-inset-*)`, déjà gérées par le layout).
+
+## PWA (installable sur iPhone)
+- `public/manifest.webmanifest`, `public/sw.js`, balises Apple dans `index.html`. Tous les chemins sont **relatifs** (l'app peut vivre sous `BASE_PATH`).
+- Service worker : seules les requêtes GET de même origine sont interceptées ; jamais le BFF, Supabase ni les images tierces. Changer la stratégie de la coquille ⇒ incrémenter `VERSION` dans `sw.js`.
+- Icônes : `node scripts/generate-icons.mjs` (aucune dépendance). iOS exige une `apple-touch-icon` opaque et carrée.
+- À vérifier sur un vrai iPhone après toute modification : installation, plein écran, barre d'état, zones sûres, lecture audio écran verrouillé.
 
 ## Configuration runtime
 Les valeurs viennent de `window.__APP_CONFIG__` (substituées au boot du conteneur) avec fallback `import.meta.env.VITE_*` en dev. Toute nouvelle variable : `runtimeConfig.ts` + `public/config.js` + `docker-entrypoint.sh` + `.env.example` + `docker-compose.prod.yml`. Rien de secret côté web (seule la clé `anon` Supabase est publique par design).
