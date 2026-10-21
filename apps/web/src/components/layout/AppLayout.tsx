@@ -1,239 +1,258 @@
-import { useState } from 'react';
-import {
-  Avatar,
-  Button,
-  Drawer,
-  Dropdown,
-  Grid,
-  Layout,
-  Menu,
-  Space,
-  Spin,
-  Tag,
-  Typography,
-  theme,
-} from 'antd';
-import {
-  DashboardOutlined,
-  StarOutlined,
-  RiseOutlined,
-  GlobalOutlined,
-  SettingOutlined,
-  MenuOutlined,
-  SoundOutlined,
-  UserOutlined,
-  LogoutOutlined,
-} from '@ant-design/icons';
+import { Avatar, theme } from 'antd';
+import { UserOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigation } from 'react-router-dom';
-import { useUserSettings } from '@/hooks/useUserSettings';
 import { useAuth } from '@/lib/auth';
-import { HORIZONS } from '@/constants/horizons';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { usePlayer } from '@/hooks/usePlayer';
+import { MiniPlayer } from '@/components/podcast/MiniPlayer';
+import { NAV_ITEMS } from './nav';
 
-const { Sider, Header, Content } = Layout;
-const { useBreakpoint } = Grid;
-
-// Marges de sécurité iOS (encoche, Dynamic Island, barre d'accueil) :
-// viewport-fit=cover est déclaré dans index.html, sinon ces valeurs valent 0.
+// Zones sûres iOS (encoche, Dynamic Island, barre d'accueil). viewport-fit=cover
+// est déclaré dans index.html, sinon ces valeurs valent 0.
 const SAFE_TOP = 'env(safe-area-inset-top, 0px)';
 const SAFE_RIGHT = 'env(safe-area-inset-right, 0px)';
 const SAFE_BOTTOM = 'env(safe-area-inset-bottom, 0px)';
 const SAFE_LEFT = 'env(safe-area-inset-left, 0px)';
-// Hauteur par défaut du Header antd (token Layout.headerHeight).
-const HEADER_HEIGHT = 64;
 
-const items = [
-  { key: '/', icon: <DashboardOutlined />, label: <Link to="/">Tableau de bord</Link> },
-  { key: '/recommendations', icon: <RiseOutlined />, label: <Link to="/recommendations">Recommandations</Link> },
-  { key: '/watchlist', icon: <StarOutlined />, label: <Link to="/watchlist">Watchlist</Link> },
-  { key: '/news', icon: <GlobalOutlined />, label: <Link to="/news">Actualités</Link> },
-  { key: '/podcast', icon: <SoundOutlined />, label: <Link to="/podcast">Podcast</Link> },
-  { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Réglages</Link> },
-];
+const TAB_BAR_HEIGHT = 56;
+const MINI_PLAYER_HEIGHT = 60;
 
-function Brand({ compact = false }: { compact?: boolean }) {
+/** Fine barre de progression en haut d'écran pendant le chargement d'une page (chunks lazy). */
+function NavigationProgress() {
+  const navigation = useNavigation();
+  const { token } = theme.useToken();
+  if (navigation.state === 'idle') return null;
   return (
-    <Space align="center" style={{ padding: compact ? 0 : '16px 20px' }}>
-      <div
+    <div
+      role="progressbar"
+      aria-label="Chargement de la page"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: `calc(2px + ${SAFE_TOP})`,
+        background: token.colorPrimary,
+        opacity: 0.8,
+        zIndex: 1100,
+      }}
+    />
+  );
+}
+
+function Brand() {
+  const { token } = theme.useToken();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 8px' }}>
+      <span
         aria-hidden
         style={{
-          width: 28,
-          height: 28,
-          borderRadius: 6,
+          width: 30,
+          height: 30,
+          borderRadius: 8,
           background: 'linear-gradient(135deg, #22c55e, #3b82f6)',
+          color: '#0b0d12',
           display: 'grid',
           placeItems: 'center',
-          // Texte du logo : couleur de marque fixe, lisible sur le dégradé
-          // dans les deux thèmes.
-          color: '#0b0d12',
           fontWeight: 800,
+          fontSize: 14,
         }}
       >
         ih
-      </div>
-      {compact ? (
-        <span className="sr-only">InvestHelper</span>
-      ) : (
-        <Typography.Text strong style={{ fontSize: 16 }}>
-          InvestHelper
-        </Typography.Text>
-      )}
-    </Space>
+      </span>
+      <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: token.colorText }}>
+        InvestHelper
+      </span>
+    </div>
+  );
+}
+
+/** Barre d'onglets mobile : translucide, au-dessus de la barre d'accueil iOS. */
+function TabBar() {
+  const { pathname } = useLocation();
+  const { token } = theme.useToken();
+  return (
+    <nav
+      aria-label="Navigation principale"
+      style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1000,
+        height: `calc(${TAB_BAR_HEIGHT}px + ${SAFE_BOTTOM})`,
+        paddingBottom: SAFE_BOTTOM,
+        paddingLeft: SAFE_LEFT,
+        paddingRight: SAFE_RIGHT,
+        display: 'grid',
+        gridTemplateColumns: `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))`,
+        background: `color-mix(in srgb, ${token.colorBgLayout} 78%, transparent)`,
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        borderTop: `1px solid ${token.colorBorderSecondary}`,
+      }}
+    >
+      {NAV_ITEMS.map((item) => {
+        const active = item.isActive(pathname);
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            aria-current={active ? 'page' : undefined}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+              fontSize: 11,
+              fontWeight: 600,
+              color: active ? token.colorPrimaryText : token.colorTextSecondary,
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 22, lineHeight: 1 }}>
+              {item.icon}
+            </span>
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function Sidebar() {
+  const { pathname } = useLocation();
+  const { token } = theme.useToken();
+  const { user } = useAuth();
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
+  const settingsActive = pathname.startsWith('/settings');
+
+  const rowStyle = (active: boolean) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 40,
+    padding: '0 10px',
+    borderRadius: 10,
+    fontSize: 14,
+    fontWeight: 600,
+    color: active ? token.colorText : token.colorTextSecondary,
+    background: active ? token.colorFillSecondary : 'transparent',
+  });
+
+  return (
+    <aside
+      style={{
+        position: 'sticky',
+        top: 0,
+        height: '100dvh',
+        width: 240,
+        flex: '0 0 240px',
+        boxSizing: 'border-box',
+        padding: `calc(20px + ${SAFE_TOP}) 12px calc(16px + ${SAFE_BOTTOM}) calc(12px + ${SAFE_LEFT})`,
+        borderRight: `1px solid ${token.colorBorderSecondary}`,
+        background: token.colorBgContainer,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+      }}
+    >
+      <Brand />
+      <nav aria-label="Navigation principale" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {NAV_ITEMS.map((item) => {
+          const active = item.isActive(pathname);
+          return (
+            <Link key={item.to} to={item.to} aria-current={active ? 'page' : undefined} style={rowStyle(active)}>
+              <span aria-hidden style={{ fontSize: 18, color: active ? token.colorPrimary : 'inherit' }}>
+                {item.icon}
+              </span>
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+      <div style={{ flex: 1 }} />
+      <MiniPlayer variant="sidebar" />
+      <Link
+        to="/settings"
+        aria-current={settingsActive ? 'page' : undefined}
+        style={{ ...rowStyle(settingsActive), minHeight: 44 }}
+      >
+        <Avatar size={28} src={avatarUrl} alt="" icon={<UserOutlined />} />
+        Compte et réglages
+      </Link>
+    </aside>
   );
 }
 
 export default function AppLayout() {
-  const screens = useBreakpoint();
-  const isMobile = !screens.md;
+  const isMobile = useIsMobile();
   const { token } = theme.useToken();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const location = useLocation();
-  const navigation = useNavigation();
-  const { horizon } = useUserSettings();
-  const { user, signOut } = useAuth();
-  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
-  const fullName =
-    (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? 'Compte';
-  const border = `1px solid ${token.colorBorderSecondary}`;
-  const gutter = isMobile ? 12 : 24;
-  const contentGutter = isMobile ? 16 : 24;
+  const { episode } = usePlayer();
 
-  const menu = (
-    <Menu
-      mode="inline"
-      selectedKeys={[location.pathname]}
-      items={items}
-      style={{ borderInlineEnd: 'none', background: 'transparent' }}
-      onClick={() => setDrawerOpen(false)}
-    />
-  );
-
-  return (
-    // overflowX clip : dernier garde-fou contre un défilement horizontal de
-    // toute la page (clip ne crée pas de conteneur de scroll, sticky intact).
-    <Layout style={{ minHeight: '100dvh', overflowX: 'clip' }}>
-      {!isMobile && (
-        <Sider
-          width={232}
-          breakpoint="lg"
-          style={{ borderRight: border, paddingTop: SAFE_TOP, paddingLeft: SAFE_LEFT }}
-        >
-          <Brand />
-          {menu}
-        </Sider>
-      )}
-
-      {/* minWidth 0 : un enfant large (tableau, graphique) ne peut pas
-          élargir la colonne au-delà de l'écran. */}
-      <Layout style={{ minWidth: 0 }}>
-        <Header
+  if (isMobile) {
+    // Le contenu défile sous la barre d'onglets et le mini-lecteur : on réserve leur hauteur.
+    const reserved = TAB_BAR_HEIGHT + (episode ? MINI_PLAYER_HEIGHT + 8 : 0) + 24;
+    return (
+      <div style={{ minHeight: '100dvh', background: token.colorBgLayout, overflowX: 'clip' }}>
+        {/* App installée (barre d'état translucide) : le contenu qui défile ne
+            doit pas passer sous l'heure et la batterie. Hauteur nulle hors PWA. */}
+        <div
+          aria-hidden
           style={{
-            height: `calc(${HEADER_HEIGHT}px + ${SAFE_TOP})`,
-            paddingTop: SAFE_TOP,
-            paddingLeft: isMobile ? `calc(${gutter}px + ${SAFE_LEFT})` : gutter,
-            paddingRight: `calc(${gutter}px + ${SAFE_RIGHT})`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
-            borderBottom: border,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: SAFE_TOP,
+            zIndex: 1001,
+            background: `color-mix(in srgb, ${token.colorBgLayout} 82%, transparent)`,
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
           }}
-        >
-          <Space style={{ minWidth: 0 }}>
-            {isMobile && (
-              <Button
-                type="text"
-                icon={<MenuOutlined />}
-                onClick={() => setDrawerOpen(true)}
-                aria-label="Ouvrir le menu"
-              />
-            )}
-            {isMobile && <Brand compact />}
-          </Space>
-          <Space size={12} style={{ flexShrink: 0 }}>
-            {/* Pages en lazy : le routeur attend le chunk avant de naviguer,
-                on signale donc que le clic a bien été pris en compte. */}
-            {navigation.state !== 'idle' && <Spin size="small" aria-label="Chargement de la page" />}
-            {/* Sous md, l'horizon reste visible dans Réglages : le header
-                d'un écran de 360 px n'a pas la place pour ce tag. */}
-            {!isMobile && <Tag color="green">Horizon : {HORIZONS[horizon].label}</Tag>}
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: 'name',
-                    label: (
-                      <div style={{ padding: '4px 0', maxWidth: 220 }}>
-                        <Typography.Text strong style={{ display: 'block' }}>
-                          {fullName}
-                        </Typography.Text>
-                        {user?.email && fullName !== user.email && (
-                          <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                            {user.email}
-                          </Typography.Text>
-                        )}
-                      </div>
-                    ),
-                    disabled: true,
-                  },
-                  { type: 'divider' },
-                  {
-                    key: 'settings',
-                    icon: <SettingOutlined />,
-                    label: <Link to="/settings">Réglages</Link>,
-                  },
-                  {
-                    key: 'logout',
-                    icon: <LogoutOutlined />,
-                    label: 'Déconnexion',
-                    danger: true,
-                    onClick: () => signOut(),
-                  },
-                ],
-              }}
-              trigger={['click']}
-              placement="bottomRight"
-            >
-              {/* Vrai bouton : focusable au clavier, activable avec Entrée /
-                  Espace, annoncé par les lecteurs d'écran. */}
-              <Button
-                type="text"
-                shape="circle"
-                aria-label="Menu du compte"
-                aria-haspopup="menu"
-                style={{ width: 40, height: 40, padding: 0 }}
-              >
-                <Avatar src={avatarUrl} alt="" icon={<UserOutlined />} />
-              </Button>
-            </Dropdown>
-          </Space>
-        </Header>
-
-        <Content
+        />
+        <NavigationProgress />
+        <main
           style={{
-            minWidth: 0,
-            paddingTop: contentGutter,
-            paddingRight: `calc(${contentGutter}px + ${SAFE_RIGHT})`,
-            paddingBottom: `calc(${contentGutter}px + ${SAFE_BOTTOM})`,
-            paddingLeft: isMobile ? `calc(${contentGutter}px + ${SAFE_LEFT})` : contentGutter,
+            padding: `calc(12px + ${SAFE_TOP}) calc(16px + ${SAFE_RIGHT}) calc(${reserved}px + ${SAFE_BOTTOM}) calc(16px + ${SAFE_LEFT})`,
           }}
         >
           <Outlet />
-        </Content>
-      </Layout>
+        </main>
+        {episode && (
+          <div
+            style={{
+              position: 'fixed',
+              zIndex: 1000,
+              left: `calc(8px + ${SAFE_LEFT})`,
+              right: `calc(8px + ${SAFE_RIGHT})`,
+              bottom: `calc(${TAB_BAR_HEIGHT + 8}px + ${SAFE_BOTTOM})`,
+            }}
+          >
+            <MiniPlayer variant="floating" />
+          </div>
+        )}
+        <TabBar />
+      </div>
+    );
+  }
 
-      <Drawer
-        placement="left"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        width={260}
-        styles={{
-          content: { paddingTop: SAFE_TOP, paddingLeft: SAFE_LEFT, paddingBottom: SAFE_BOTTOM },
-          body: { padding: 0 },
+  return (
+    <div style={{ display: 'flex', minHeight: '100dvh', background: token.colorBgLayout }}>
+      <NavigationProgress />
+      <Sidebar />
+      <main
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: `calc(28px + ${SAFE_TOP}) calc(32px + ${SAFE_RIGHT}) calc(40px + ${SAFE_BOTTOM}) 32px`,
         }}
       >
-        <Brand />
-        {menu}
-      </Drawer>
-    </Layout>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <Outlet />
+        </div>
+      </main>
+    </div>
   );
 }

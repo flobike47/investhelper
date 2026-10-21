@@ -1,137 +1,134 @@
-import { useEffect } from 'react';
-import {
-  Alert,
-  App as AntApp,
-  Avatar,
-  Button,
-  Card,
-  Form,
-  Popconfirm,
-  Radio,
-  Segmented,
-  Skeleton,
-  Space,
-  Typography,
-} from 'antd';
+import type { ReactNode } from 'react';
+import { Alert, App as AntApp, Avatar, Button, Progress, Segmented, Skeleton, theme } from 'antd';
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '@/lib/auth';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useQuotas } from '@/hooks/useQuotas';
-import { HORIZON_LIST } from '@/constants/horizons';
-import type { PodcastDuration, UserSettings } from '@/services/api';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { HORIZON_LIST, type Horizon } from '@/constants/horizons';
+import type { PodcastDuration, QuotaInfo, UserSettings } from '@/services/api';
+import { PageHeader } from '@/components/common/PageHeader';
 
-type FormValues = Pick<UserSettings, 'horizon' | 'theme' | 'podcastDuration'>;
-const FIELDS = ['horizon', 'theme', 'podcastDuration'] as const;
+const QUOTA_LABELS: Record<QuotaInfo['bucket'], string> = {
+  sentiment: 'Analyses de sentiment',
+  themes: "Thèmes d'actualité",
+  podcastScript: 'Épisodes de podcast',
+  podcastTts: 'Synthèse vocale HD',
+};
 
+function Group({ label, children }: { label: string; children: ReactNode }) {
+  const { token } = theme.useToken();
+  return (
+    <section aria-label={label} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <h2 style={{ margin: '0 4px', fontSize: 13, fontWeight: 600, color: token.colorTextSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {label}
+      </h2>
+      <div style={{ background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 16, overflow: 'hidden' }}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Row({ title, hint, children, first }: { title: string; hint?: string; children: ReactNode; first?: boolean }) {
+  const { token } = theme.useToken();
+  const id = `pref-${title.replace(/\W+/g, '-').toLowerCase()}`;
+  return (
+    <div role="group" aria-labelledby={id} style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, borderTop: first ? undefined : `1px solid ${token.colorBorderSecondary}` }}>
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span id={id} style={{ fontSize: 15, fontWeight: 600 }}>
+          {title}
+        </span>
+        {hint && <span style={{ fontSize: 13, color: token.colorTextSecondary, lineHeight: 1.35 }}>{hint}</span>}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Compte et réglages. Chaque choix est enregistré immédiatement et seul le
+ * champ modifié est envoyé : aucune valeur affichée par défaut ne peut écraser
+ * une préférence serveur.
+ */
 export default function Settings() {
   const { user, signOut } = useAuth();
   const settings = useUserSettings();
   const quotas = useQuotas();
-  const { message } = AntApp.useApp();
-  const [form] = Form.useForm<FormValues>();
-
-  const { horizon, theme, podcastDuration, loading } = settings;
-
-  // Les réglages serveur peuvent changer après le montage du formulaire
-  // (refetch, autre onglet) : on reflète la nouvelle valeur dans les champs
-  // que l'utilisateur n'a pas touchés, sans écraser une saisie en cours.
-  useEffect(() => {
-    if (loading) return;
-    const server: FormValues = { horizon, theme, podcastDuration };
-    for (const f of FIELDS) {
-      if (!form.isFieldTouched(f)) form.setFieldValue(f, server[f]);
-    }
-  }, [form, loading, horizon, theme, podcastDuration]);
-
-  const onSave = async (values: FormValues) => {
-    // N'envoyer que ce que l'utilisateur a réellement modifié : un champ
-    // resté à sa valeur affichée ne doit jamais écraser la valeur serveur.
-    const changed = (f: (typeof FIELDS)[number]) =>
-      form.isFieldTouched(f) && values[f] !== settings[f];
-    const patch: Partial<UserSettings> = {};
-    if (changed('horizon')) patch.horizon = values.horizon;
-    if (changed('theme')) patch.theme = values.theme;
-    if (changed('podcastDuration')) patch.podcastDuration = values.podcastDuration;
-
-    if (Object.keys(patch).length === 0) {
-      message.info('Aucune modification à enregistrer.');
-      return;
-    }
-    try {
-      await settings.save(patch);
-      form.setFields(FIELDS.map((name) => ({ name, touched: false })));
-      message.success('Préférences enregistrées.');
-    } catch (e) {
-      message.error((e as Error).message || "Échec de l'enregistrement.");
-    }
-  };
+  const isMobile = useIsMobile();
+  const { message, modal } = AntApp.useApp();
+  const { token } = theme.useToken();
 
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
-  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? user?.email;
+  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? 'Compte';
+
+  const save = (patch: Partial<UserSettings>) =>
+    settings.save(patch).then(
+      () => message.success({ content: 'Enregistré', duration: 1.2 }),
+      (e: Error) => message.error(e.message || "Échec de l'enregistrement."),
+    );
+
+  const confirmSignOut = () =>
+    modal.confirm({
+      title: 'Se déconnecter ?',
+      okText: 'Se déconnecter',
+      okButtonProps: { danger: true },
+      cancelText: 'Annuler',
+      onOk: () => signOut(),
+    });
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 720 }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        Réglages
-      </Typography.Title>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 640 }}>
+      <PageHeader title="Compte et réglages" showAccount={false} back={isMobile ? { to: '/', label: 'Retour' } : undefined} />
 
-      <Card title="Mon compte">
-        <Space align="center" size={16} style={{ width: '100%' }}>
-          <Avatar size={56} src={avatarUrl} icon={<UserOutlined />} />
-          <div style={{ flex: 1 }}>
-            <Typography.Text strong style={{ fontSize: 16 }}>
-              {fullName}
-            </Typography.Text>
-            <br />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {user?.email}
-            </Typography.Text>
-          </div>
-          <Popconfirm title="Se déconnecter ?" onConfirm={() => signOut()}>
-            <Button danger icon={<LogoutOutlined />}>
-              Déconnexion
-            </Button>
-          </Popconfirm>
-        </Space>
-      </Card>
+      <section aria-label="Compte" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 16, background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 16 }}>
+        <Avatar size={56} src={avatarUrl} alt="" icon={<UserOutlined />} />
+        <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 17, fontWeight: 650 }}>{fullName}</span>
+          {user?.email && fullName !== user.email && (
+            <span style={{ fontSize: 13, color: token.colorTextSecondary, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</span>
+          )}
+          <span style={{ fontSize: 12, color: token.colorTextTertiary }}>Connecté avec Google · préférences synchronisées</span>
+        </span>
+      </section>
 
-      <Card title="Préférences">
+      <Group label="Préférences">
         {settings.error && (
-          <Alert
-            style={{ marginBottom: 16 }}
-            type="warning"
-            showIcon
-            message="Impossible de charger tes réglages"
-            description={`${settings.error.message} — seuls les champs que tu modifies seront enregistrés.`}
-          />
+          <Alert banner type="warning" message={`Réglages non chargés : ${settings.error.message}`} />
         )}
-        {loading ? (
-          // Formulaire monté seulement une fois les réglages connus : ses
-          // valeurs initiales sont alors celles du serveur, pas les défauts.
-          <Skeleton active paragraph={{ rows: 4 }} />
+        {settings.loading ? (
+          <div style={{ padding: 16 }}>
+            <Skeleton active paragraph={{ rows: 4 }} />
+          </div>
         ) : (
-          <Form<FormValues>
-            form={form}
-            layout="vertical"
-            initialValues={{ horizon, theme, podcastDuration }}
-            onFinish={onSave}
-          >
-            <Form.Item label="Horizon d'investissement par défaut" name="horizon">
-              <Radio.Group>
-                {HORIZON_LIST.map((h) => (
-                  <Radio.Button key={h.id} value={h.id}>
-                    {h.label}
-                  </Radio.Button>
-                ))}
-              </Radio.Group>
-            </Form.Item>
-
-            <Form.Item
-              label="Durée des podcasts"
-              name="podcastDuration"
-              extra="Auto : la durée s'adapte au volume d'actualités du jour pour les catégories choisies."
-            >
+          <>
+            <Row first title="Horizon par défaut" hint="Règle les indicateurs (moyennes, RSI) et la durée des plans.">
+              <Segmented<Horizon>
+                block
+                name="horizon"
+                value={settings.horizon}
+                onChange={(horizon) => save({ horizon })}
+                options={HORIZON_LIST.map((h) => ({ label: h.label.replace(' terme', ''), value: h.id }))}
+              />
+            </Row>
+            <Row title="Apparence" hint="Sombre ou clair, sur tous vos appareils.">
+              <Segmented<'dark' | 'light'>
+                block
+                name="theme"
+                value={settings.theme}
+                onChange={(theme) => save({ theme })}
+                options={[
+                  { label: 'Sombre', value: 'dark' },
+                  { label: 'Clair', value: 'light' },
+                ]}
+              />
+            </Row>
+            <Row title="Durée du podcast" hint="Auto : adaptée au volume d'actualités du jour.">
               <Segmented<PodcastDuration>
+                block
+                name="podcastDuration"
+                value={settings.podcastDuration}
+                onChange={(podcastDuration) => save({ podcastDuration })}
                 options={[
                   { label: 'Auto', value: 'auto' },
                   { label: '2 min', value: '2' },
@@ -139,50 +136,54 @@ export default function Settings() {
                   { label: '8 min', value: '8' },
                 ]}
               />
-            </Form.Item>
-
-            <Form.Item label="Thème" name="theme">
-              <Radio.Group>
-                <Radio.Button value="dark">Sombre</Radio.Button>
-                <Radio.Button value="light">Clair</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
-
-            <Form.Item>
-              <Button type="primary" htmlType="submit" loading={settings.saving}>
-                Enregistrer
-              </Button>
-            </Form.Item>
-          </Form>
+            </Row>
+          </>
         )}
-      </Card>
+      </Group>
 
-      <Card title="Quotas du jour" loading={quotas.isLoading}>
-        {quotas.error ? (
-          <Alert type="error" showIcon message="Quotas indisponibles" description={quotas.error.message} />
+      <Group label="Utilisation aujourd'hui">
+        {quotas.isLoading ? (
+          <div style={{ padding: 16 }}>
+            <Skeleton active paragraph={{ rows: 3 }} />
+          </div>
+        ) : quotas.error ? (
+          <Alert banner type="error" message={`Quotas indisponibles : ${quotas.error.message}`} />
         ) : (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
-            {(quotas.data ?? []).map((q) => (
-              <div key={q.bucket} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                <Typography.Text>{labelFor(q.bucket)}</Typography.Text>
-                <Typography.Text type="secondary" className="tabular-nums">
-                  {q.used} / {q.limit} utilisés · reset dans {Math.ceil(q.resetSec / 3600)} h
-                </Typography.Text>
+          (quotas.data ?? []).map((q, i) => {
+            const ratio = q.limit > 0 ? q.used / q.limit : 0;
+            return (
+              <div key={q.bucket} style={{ padding: '12px 16px', borderTop: i === 0 ? undefined : `1px solid ${token.colorBorderSecondary}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 15 }}>
+                  <span>{QUOTA_LABELS[q.bucket] ?? q.bucket}</span>
+                  <span className="tabular-nums" style={{ color: token.colorTextSecondary }}>
+                    {q.used} / {q.limit}
+                  </span>
+                </div>
+                <Progress
+                  percent={Math.round(ratio * 100)}
+                  showInfo={false}
+                  size="small"
+                  strokeColor={ratio > 0.8 ? token.colorWarning : token.colorPrimary}
+                  aria-label={`${QUOTA_LABELS[q.bucket] ?? q.bucket} : ${q.used} sur ${q.limit}`}
+                  style={{ margin: 0 }}
+                />
+                <span className="tabular-nums" style={{ fontSize: 12, color: token.colorTextTertiary }}>
+                  Remise à zéro dans {Math.ceil(q.resetSec / 3600)} h
+                </span>
               </div>
-            ))}
-          </Space>
+            );
+          })
         )}
-      </Card>
-    </Space>
-  );
-}
+      </Group>
 
-function labelFor(b: string): string {
-  switch (b) {
-    case 'sentiment': return 'Analyses sentiment news';
-    case 'themes': return 'Extractions de thèmes';
-    case 'podcastScript': return 'Scripts podcast générés';
-    case 'podcastTts': return 'Chunks TTS synthétisés';
-    default: return b;
-  }
+      <Button size="large" danger icon={<LogoutOutlined />} onClick={confirmSignOut}>
+        Se déconnecter
+      </Button>
+      <p style={{ margin: 0, fontSize: 12, color: token.colorTextTertiary, textAlign: 'center', lineHeight: 1.5 }}>
+        InvestHelper ne stocke aucune donnée bancaire.
+        <br />
+        Indicateurs, pas des conseils financiers.
+      </p>
+    </div>
+  );
 }

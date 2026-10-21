@@ -8,6 +8,12 @@ import { afterEach } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp, ConfigProvider } from 'antd';
+import { MemoryRouter } from 'react-router-dom';
+import dayjs from 'dayjs';
+import 'dayjs/locale/fr';
+
+// Même locale que l'app (main.tsx) : dates en français dans les tests
+dayjs.locale('fr');
 
 // Sans `globals: true`, Testing Library ne nettoie pas le DOM tout seul
 afterEach(() => cleanup());
@@ -43,4 +49,12 @@ export function renderWithProviders(ui: ReactElement, client = createTestQueryCl
   );
   const utils = render(wrap(ui));
   return { ...utils, client, rerender: (next: ReactElement) => utils.rerender(wrap(next)) };
+}
+
+/** Comme renderWithProviders, dans un routeur mémoire (pages avec liens). */
+export function renderPage(ui: ReactElement, path = '/') {
+  const client = createTestQueryClient();
+  const wrap = (node: ReactElement) => <MemoryRouter initialEntries={[path]}>{node}</MemoryRouter>;
+  const utils = renderWithProviders(wrap(ui), client);
+  return { ...utils, rerender: (next: ReactElement) => utils.rerender(wrap(next)) };
 }

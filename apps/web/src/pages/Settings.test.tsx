@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { renderWithProviders } from '@/hooks/test-utils';
+import { renderPage } from '@/hooks/test-utils';
 import { ApiError, api, type UserSettings } from '@/services/api';
 import { useLocalSettings } from '@/store/localSettings';
 import Settings from './Settings';
@@ -25,6 +25,8 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+const checked = (name: string) => (screen.getByRole('radio', { name }) as HTMLInputElement).checked;
+
 describe('Settings', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -34,47 +36,53 @@ describe('Settings', () => {
     vi.mocked(api.saveSettings).mockResolvedValue({ ok: true });
   });
 
-  it("n'écrase pas l'horizon serveur quand on change seulement le thème", async () => {
+  it('affiche les valeurs serveur, jamais des défauts modifiables pendant le chargement', async () => {
     const pending = deferred<UserSettings>();
     vi.mocked(api.getSettings).mockReturnValue(pending.promise);
-    renderWithProviders(<Settings />);
+    renderPage(<Settings />);
 
-    // Pendant le chargement, aucun formulaire (donc aucun défaut enregistrable)
-    expect(screen.queryByRole('button', { name: 'Enregistrer' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Clair' })).not.toBeInTheDocument();
 
     pending.resolve(SERVER);
-    const save = await screen.findByRole('button', { name: 'Enregistrer' });
-    expect(screen.getByRole('radio', { name: 'Long terme' })).toBeChecked();
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Clair' }));
-    fireEvent.click(save);
-
-    await waitFor(() => expect(api.saveSettings).toHaveBeenCalledTimes(1));
-    expect(api.saveSettings).toHaveBeenCalledWith({ theme: 'light' });
-    expect(await screen.findByText('Préférences enregistrées.')).toBeInTheDocument();
+    await screen.findByRole('radio', { name: 'Clair' });
+    await waitFor(() => expect(checked('Long')).toBe(true), { timeout: 3000 });
+    expect(checked('Sombre')).toBe(true);
+    expect(checked('4 min')).toBe(true);
   });
 
-  it("si les réglages n'ont pas pu être chargés, n'envoie que les champs modifiés", async () => {
-    vi.mocked(api.getSettings).mockRejectedValue(new ApiError('BFF indisponible', 503, 'r1'));
-    renderWithProviders(<Settings />);
+  it("enregistre immédiatement et n'envoie que le champ modifié", async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(SERVER);
+    renderPage(<Settings />);
 
-    expect(await screen.findByText(/BFF indisponible/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('radio', { name: 'Clair' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    fireEvent.click(await screen.findByRole('radio', { name: 'Clair' }));
 
-    await waitFor(() => expect(api.saveSettings).toHaveBeenCalledWith({ theme: 'light' }));
+    await waitFor(() => expect(api.saveSettings).toHaveBeenCalledTimes(1));
+    // L'horizon « long » n'est pas renvoyé : il ne peut pas être écrasé
+    expect(api.saveSettings).toHaveBeenCalledWith({ theme: 'light' });
+    expect(await screen.findByText('Enregistré')).toBeInTheDocument();
   });
 
   it("n'annonce pas de succès si l'enregistrement échoue", async () => {
     vi.mocked(api.getSettings).mockResolvedValue(SERVER);
     vi.mocked(api.saveSettings).mockRejectedValue(new ApiError('Quota dépassé', 429, 'r2'));
-    renderWithProviders(<Settings />);
+    renderPage(<Settings />);
 
-    fireEvent.click(await screen.findByRole('radio', { name: 'Court terme' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    fireEvent.click(await screen.findByRole('radio', { name: 'Court' }));
 
     expect(await screen.findByText('Quota dépassé')).toBeInTheDocument();
     expect(api.saveSettings).toHaveBeenCalledWith({ horizon: 'short' });
-    expect(screen.queryByText('Préférences enregistrées.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enregistré')).not.toBeInTheDocument();
+  });
+
+  it("affiche l'utilisation des quotas du jour", async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(SERVER);
+    vi.mocked(api.getQuotas).mockResolvedValue({
+      quotas: [{ bucket: 'podcastScript', used: 2, limit: 20, remaining: 18, resetSec: 9 * 3600 }],
+    });
+    renderPage(<Settings />);
+
+    expect(await screen.findByText('Épisodes de podcast')).toBeInTheDocument();
+    expect(screen.getByText('2 / 20')).toBeInTheDocument();
+    expect(screen.getByText('Remise à zéro dans 9 h')).toBeInTheDocument();
   });
 });
