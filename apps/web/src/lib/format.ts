@@ -32,3 +32,13 @@ export function formatSignedPct(pct: number | null | undefined, digits = 2): str
   // Espace insécable fine avant % (typographie française, comme Intl en style percent).
   return `${signedPctFormatter(digits).format(value)}\u202f%`;
 }
+
+/** Durée en secondes → « m:ss » (ou « h:mm:ss » au-delà d'une heure). `0:00` si inconnue. */
+export function formatClock(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const total = Math.floor(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
