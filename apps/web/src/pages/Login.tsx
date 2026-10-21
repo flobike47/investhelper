@@ -1,12 +1,16 @@
-import { Button, Card, Space, Typography, message } from 'antd';
+import { App, Button, Card, Space, Typography, theme } from 'antd';
 import { GoogleOutlined } from '@ant-design/icons';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
+import { PageLoader } from '@/components/common/PageLoader';
 
 export default function Login() {
   const { user, loading, signInWithGoogle } = useAuth();
+  // Contexte antd : les messages suivent le thème clair/sombre choisi.
+  const { message } = App.useApp();
+  const { token } = theme.useToken();
 
-  if (loading) return null;
+  if (loading) return <PageLoader />;
   if (user) return <Navigate to="/" replace />;
 
   const onClick = async () => {
@@ -20,10 +24,11 @@ export default function Login() {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        // svh : écran d'accueil, jamais rogné par la barre d'URL mobile.
+        minHeight: '100svh',
         display: 'grid',
         placeItems: 'center',
-        background: 'radial-gradient(ellipse at top, #131720 0%, #0b0d12 50%)',
+        background: `radial-gradient(ellipse at top, ${token.colorBgContainer} 0%, ${token.colorBgLayout} 50%)`,
         padding: 16,
       }}
     >
