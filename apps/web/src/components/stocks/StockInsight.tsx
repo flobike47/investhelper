@@ -58,13 +58,13 @@ export function StockInsight({ symbol, horizon }: { symbol: string; horizon: Hor
       <Row gutter={[16, 12]}>
         <Col xs={24} md={10}>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Sentiment news (Mistral)
+            Sentiment news (analyse IA)
           </Typography.Text>
           <div style={{ marginTop: 4 }}>
             {sentiment.isLoading ? (
               <Skeleton.Input active size="small" />
             ) : sentiment.isError ? (
-              <Tag color="red">Erreur Mistral</Tag>
+              <Tag color="red">Analyse IA indisponible</Tag>
             ) : sentiment.data ? (
               <Space wrap>
                 <Tag color={SENTIMENT_COLORS[sentiment.data.sentiment]}>

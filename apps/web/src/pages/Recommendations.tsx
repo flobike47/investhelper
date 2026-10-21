@@ -28,7 +28,7 @@ function ThemeBanner({ themes }: { themes: { name: string; direction: string; su
   return (
     <Card>
       <Space direction="vertical" size={10} style={{ width: '100%' }}>
-        <Typography.Text strong>Thèmes dominants dans l'actualité (analyse Mistral)</Typography.Text>
+        <Typography.Text strong>Thèmes dominants dans l'actualité (analyse IA Gemini)</Typography.Text>
         <Space wrap>
           {themes.map((t) => (
             <Tag
@@ -255,7 +255,7 @@ export default function Recommendations() {
           description={
             <>
               Les 5 titres ci-dessous sont sélectionnés depuis un univers curé (~70 actions/ETF)
-              en croisant : <strong>thèmes dominants extraits de l'actualité par Mistral</strong>,{' '}
+              en croisant : <strong>thèmes dominants extraits de l'actualité par l'IA (Gemini)</strong>,{' '}
               <strong>consensus analystes</strong> et <strong>signaux techniques</strong>.{' '}
               <strong>Aucune date d'achat/vente précise n'est prédite</strong> — on te donne des
               fenêtres conditionnelles et un horizon de détention. La décision finale et le
@@ -269,7 +269,7 @@ export default function Recommendations() {
           <Alert
             type="error"
             showIcon
-            message="Erreur Mistral"
+            message="Analyse IA des thèmes indisponible"
             description={themesError.message}
           />
         )}
