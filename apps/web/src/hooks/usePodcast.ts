@@ -53,7 +53,16 @@ export function usePodcastCategories() {
   return {
     categories: query.data ?? [],
     loading: query.isLoading,
+    /** Erreur de chargement (ApiError, `.message` lisible). */
+    error: query.error,
+    adding: addMut.isPending,
     add: (name: string) => addMut.mutate(name.trim()),
+    /**
+     * Résout une fois l'ajout confirmé par le serveur, rejette sinon. Le
+     * rollback et le toast d'erreur sont gérés ici : l'appelant n'annonce que
+     * le succès.
+     */
+    addAsync: (name: string) => addMut.mutateAsync(name.trim()),
     remove: (name: string) => removeMut.mutate(name),
   };
 }
@@ -70,10 +79,11 @@ export function usePodcastEpisodes() {
     staleTime: 60_000,
   });
 
+  // Pas de toast d'erreur ici : l'appelant attend la promesse (génération en
+  // deux temps script → sauvegarde) et affiche une seule erreur.
   const addMut = useMutation({
     mutationFn: (ep: Omit<PodcastEpisodeDto, 'id' | 'createdAt'>) => api.saveEpisode(ep),
     onSettled: () => qc.invalidateQueries({ queryKey: EPS_KEY }),
-    onError: (e) => message.error((e as Error).message),
   });
 
   const deleteMut = useMutation({
@@ -94,7 +104,17 @@ export function usePodcastEpisodes() {
   return {
     episodes: query.data ?? [],
     loading: query.isLoading,
+    /** Erreur de chargement (ApiError, `.message` lisible). */
+    error: query.error,
     add: (ep: Omit<PodcastEpisodeDto, 'id' | 'createdAt'>) => addMut.mutateAsync(ep),
     remove: (id: string) => deleteMut.mutate(id),
   };
+}
+
+/** Génération du script d'un épisode par Gemini (passe par le BFF, quota inclus). */
+export function usePodcastScript() {
+  return useMutation({
+    mutationFn: ({ categories, target }: { categories: string[]; target: number | 'auto' }) =>
+      api.podcastScript(categories, target),
+  });
 }
