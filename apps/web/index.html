@@ -8,6 +8,16 @@
 
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <!-- PWA : manifeste + réglages iOS (« Sur l'écran d'accueil »). Chemins
+         relatifs : résolus contre <base href>, donc compatibles BASE_PATH. -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="InvestHelper" />
+    <!-- black-translucent : le contenu passe sous la barre d'état, les
+         marges env(safe-area-inset-*) l'en écartent. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!-- Couleur de la barre d'état avant le boot de React, selon le thème de
          l'OS. Ensuite App.tsx (lib/documentTheme.ts) y écrit la couleur du

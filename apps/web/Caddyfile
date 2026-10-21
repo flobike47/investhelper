@@ -24,6 +24,17 @@
     @config path /config.js
     header @config Cache-Control "no-store, must-revalidate"
 
+    # PWA : le service worker doit être revérifié à chaque visite (sinon une
+    # nouvelle version de l'app peut rester bloquée derrière l'ancien SW).
+    @sw path /sw.js
+    header @sw Cache-Control "no-cache"
+
+    # Manifeste : type MIME standard (Caddy ne connaît pas .webmanifest) et
+    # revalidation pour que nom, icônes et couleurs suivent les déploiements.
+    @manifest path /manifest.webmanifest
+    header @manifest Content-Type "application/manifest+json"
+    header @manifest Cache-Control "no-cache"
+
     # Security headers
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
