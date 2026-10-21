@@ -1,10 +1,12 @@
 import { Tag } from 'antd';
 import type { Signal } from '@/lib/scoring';
 
+// Libellés d'indicateur, pas d'injonction : l'app ne donne pas de conseil
+// en investissement, elle résume ce que disent les signaux techniques.
 const CONFIG: Record<Signal, { color: string; label: string }> = {
-  buy: { color: 'green', label: 'Acheter' },
-  hold: { color: 'gold', label: 'Conserver' },
-  sell: { color: 'red', label: 'Vendre' },
+  buy: { color: 'green', label: 'Signal haussier' },
+  hold: { color: 'gold', label: 'Neutre' },
+  sell: { color: 'red', label: 'Signal baissier' },
   unknown: { color: 'default', label: '—' },
 };
 
