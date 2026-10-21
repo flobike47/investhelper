@@ -28,7 +28,7 @@ import dayjs from 'dayjs';
 
 export default function Dashboard() {
   const { horizon, setHorizon } = useUserSettings();
-  const { tickers, loading: watchlistLoading } = useWatchlist();
+  const { tickers, loading: watchlistLoading, error: watchlistError } = useWatchlist();
   const { token } = theme.useToken();
   const navigate = useNavigate();
 
@@ -36,7 +36,8 @@ export default function Dashboard() {
   const news = useMarketNews();
 
   const summary = summarizeWatchlist(analyzed);
-  const watchlistEmpty = !watchlistLoading && tickers.length === 0;
+  // Une watchlist en erreur n'est pas « vide » : on affiche l'erreur à la place.
+  const watchlistEmpty = !watchlistLoading && !watchlistError && tickers.length === 0;
 
   // Variation moyenne : chargement tant qu'aucune valeur n'est arrivée,
   // « — » neutre si plus rien n'est attendu et qu'aucune n'est disponible.
@@ -130,6 +131,14 @@ export default function Dashboard() {
       <Card title="Mes actifs">
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           {watchlistLoading && <Skeleton active paragraph={{ rows: 2 }} />}
+          {watchlistError && (
+            <Alert
+              type="error"
+              showIcon
+              message="Impossible de charger votre watchlist"
+              description={watchlistError.message}
+            />
+          )}
           {watchlistEmpty && (
             <Empty description="Votre watchlist est vide">
               <Button type="primary" onClick={() => navigate('/watchlist')}>
