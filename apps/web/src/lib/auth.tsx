@@ -57,6 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
+// Le hook vit avec son Provider (même contexte) — compromis assumé sur le fast refresh.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthCtx {
   const ctx = useContext(Context);
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');

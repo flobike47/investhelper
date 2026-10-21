@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import { runtimeConfig } from './runtimeConfig';
 
 if (!runtimeConfig.supabaseUrl || !runtimeConfig.supabaseAnonKey) {
-  // eslint-disable-next-line no-console
   console.error(
     'SUPABASE_URL / SUPABASE_ANON_KEY non configurés (window.__APP_CONFIG__ ou VITE_SUPABASE_*).',
   );
