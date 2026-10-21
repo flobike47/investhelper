@@ -86,8 +86,12 @@ function getClient(): AxiosInstance {
   return client;
 }
 
-async function get<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
-  const res = await getClient().get<T>(`/api${path}`, { params });
+async function get<T>(
+  path: string,
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+): Promise<T> {
+  const res = await getClient().get<T>(`/api${path}`, { params, signal });
   return res.data;
 }
 
@@ -191,7 +195,8 @@ export const api = {
 
   businessNews: (country = 'fr') => get<NewsApiResponse>('/news/business', { country }),
 
-  search: (q: string) => get<SymbolSearchResult>('/search', { q }),
+  /** `signal` : annule la requête HTTP quand la saisie change (TanStack Query le fournit). */
+  search: (q: string, signal?: AbortSignal) => get<SymbolSearchResult>('/search', { q }, signal),
 
   fxRates: () => get<Record<string, number>>('/fx'),
 
