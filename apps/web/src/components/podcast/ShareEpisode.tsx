@@ -1,22 +1,21 @@
 import { useState } from 'react';
-import {
-  Button,
-  Input,
-  Modal,
-  Popconfirm,
-  Space,
-  Tooltip,
-  Typography,
-  message,
-} from 'antd';
+import { App as AntApp, Button, Input, Modal, Popconfirm, Space, Tooltip, Typography } from 'antd';
 import { CopyOutlined, LinkOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type ShareInfo } from '@/services/api';
 import { runtimeConfig } from '@/lib/runtimeConfig';
 
-export function ShareEpisode({ episodeId }: { episodeId: string }) {
+export function ShareEpisode({
+  episodeId,
+  label = 'Partager cet épisode',
+}: {
+  episodeId: string;
+  /** Libellé accessible du bouton icône (ex. « Partager l'épisode du 21 oct. »). */
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
+  const { message } = AntApp.useApp();
 
   const shareKey = ['share', episodeId];
   const shareQ = useQuery({
@@ -62,6 +61,7 @@ export function ShareEpisode({ episodeId }: { episodeId: string }) {
         <Button
           type="text"
           icon={<ShareAltOutlined />}
+          aria-label={label}
           onClick={() => setOpen(true)}
         />
       </Tooltip>
@@ -71,7 +71,7 @@ export function ShareEpisode({ episodeId }: { episodeId: string }) {
         open={open}
         onCancel={() => setOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Typography.Text type="secondary">
