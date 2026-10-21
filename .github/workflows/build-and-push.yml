@@ -16,12 +16,22 @@ concurrency:
   group: build-and-push-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # Porte qualité — aucun build ni déploiement si elle échoue
+  # ---------------------------------------------------------------------------
+  quality:
+    uses: ./.github/workflows/ci.yml
+
   # ---------------------------------------------------------------------------
   # BFF — image Node + Fastify
   # ---------------------------------------------------------------------------
   build-bff:
     name: Build & push BFF
+    needs: [quality]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -88,6 +98,7 @@ jobs:
   # ---------------------------------------------------------------------------
   build-web:
     name: Build & push Web
+    needs: [quality]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
