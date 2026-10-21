@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Avatar, Button, Drawer, Dropdown, Grid, Layout, Menu, Space, Tag, Typography } from 'antd';
+import { Avatar, Button, Drawer, Dropdown, Grid, Layout, Menu, Space, Spin, Tag, Typography } from 'antd';
 import {
   DashboardOutlined,
   StarOutlined,
@@ -11,7 +11,7 @@ import {
   UserOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigation } from 'react-router-dom';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useAuth } from '@/lib/auth';
 import { HORIZONS } from '@/constants/horizons';
@@ -59,6 +59,7 @@ export default function AppLayout() {
   const isMobile = !screens.md;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
+  const navigation = useNavigation();
   const { horizon } = useUserSettings();
   const { user, signOut } = useAuth();
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
@@ -106,6 +107,9 @@ export default function AppLayout() {
             {isMobile && <Brand compact />}
           </Space>
           <Space size={12}>
+            {/* Pages en lazy : le routeur attend le chunk avant de naviguer,
+                on signale donc que le clic a bien été pris en compte. */}
+            {navigation.state !== 'idle' && <Spin size="small" aria-label="Chargement de la page" />}
             <Tag color="green">Horizon : {HORIZONS[horizon].label}</Tag>
             <Dropdown
               menu={{
