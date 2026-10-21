@@ -95,6 +95,27 @@ button,
   }
 }
 
+/* ---------- Typographie ---------- */
+
+/* Tracking négatif léger sur les titres, proportionnel à la taille : les
+   lettres d'un grand titre paraissent trop espacées. Corps de texte inchangé. */
+h1.ant-typography,
+h2.ant-typography,
+.ant-typography h1,
+.ant-typography h2 {
+  letter-spacing: -0.02em;
+}
+
+h3.ant-typography,
+h4.ant-typography,
+h5.ant-typography,
+.ant-typography h3,
+.ant-typography h4,
+.ant-typography h5,
+.ant-result-title {
+  letter-spacing: -0.01em;
+}
+
 /* ---------- Animations réduites ---------- */
 
 /* Les transitions antd sont coupées via le token `motion` (App.tsx) ; ici on
