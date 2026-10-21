@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { createHash } from 'node:crypto';
 import { supabaseAdmin } from './providers/supabaseAdmin.js';
 import { redis } from './cache.js';
+import { Unauthorized } from './validation.js';
 
 export interface AuthUser {
   id: string;
@@ -83,11 +84,7 @@ export function registerAuth(app: FastifyInstance) {
 }
 
 export function requireUser(req: FastifyRequest): AuthUser {
-  if (!req.user) {
-    const err = new Error('Unauthorized') as Error & { statusCode?: number };
-    err.statusCode = 401;
-    throw err;
-  }
+  if (!req.user) throw new Unauthorized();
   return req.user;
 }
 

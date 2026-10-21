@@ -9,6 +9,10 @@ export const QUOTAS = {
   themes:    { max: 100, windowSec: 24 * 60 * 60 },
   podcastScript: { max: 20, windowSec: 24 * 60 * 60 },
   podcastTts:    { max: 1000, windowSec: 24 * 60 * 60 },
+  // Lecture publique d'un épisode partagé — compté par token de partage.
+  // Un épisode de 8 min ≈ 15 chunks ; 200 laisse de la marge tout en
+  // bornant la facture si un lien fuit.
+  publicTts:     { max: 200, windowSec: 24 * 60 * 60 },
 } as const;
 
 export type QuotaBucket = keyof typeof QUOTAS;
@@ -21,7 +25,8 @@ export class QuotaExceeded extends Error {
 }
 
 /**
- * `subject` = id de l'entité limitée (user.id).
+ * `subject` = id de l'entité limitée (user.id, ou `share:<token>` pour les
+ * routes publiques).
  *
  * Création de la clé avec TTL + incrément dans une seule transaction MULTI :
  * avec INCR puis EXPIRE séparés, un échec entre les deux laissait une clé

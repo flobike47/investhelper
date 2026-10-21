@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { cachedBinary, cachedJson, hashKey, TTL } from '../cache.js';
+import { MAX_TTS_TEXT, ttsCacheKey, validateSpeakers } from '../tts.js';
 import { gemini } from '../providers/gemini.js';
 import { newsapi } from '../providers/newsapi.js';
 import { enforceQuota } from '../ratelimit.js';
@@ -7,21 +8,6 @@ import { requireUser } from '../auth.js';
 import { BadRequest, clampArray, clampInt, validateString } from '../validation.js';
 
 const WORDS_PER_MINUTE_FR = 160;
-
-// Voix Gemini autorisées (préviendrait un user qui voudrait sonder l'API
-// avec des noms de voix exotiques ou un grand nombre de speakers).
-const ALLOWED_VOICES = new Set([
-  'Charon', 'Kore', 'Aoede', 'Puck', 'Fenrir', 'Zephyr', 'Algieba',
-  'Enceladus', 'Iapetus', 'Despina', 'Erinome', 'Orus', 'Schedar',
-  'Sulafat', 'Vindemiatrix', 'Achernar', 'Achird', 'Algenib',
-  'Autonoe', 'Callirrhoe', 'Gacrux', 'Laomedeia', 'Leda',
-  'Pulcherrima', 'Rasalgethi', 'Sadachbia', 'Sadaltager',
-  'Umbriel', 'Zubenelgenubi',
-]);
-const MAX_SPEAKERS = 4;
-const MAX_TTS_TEXT = 2000; // ~ 1 min d'audio max par chunk
-
-const DEFAULT_SPEAKERS: Record<string, string> = { Alex: 'Charon', Sophie: 'Kore' };
 
 interface ScriptBody {
   categories: string[];
@@ -52,26 +38,7 @@ interface ScriptResult {
 
 interface TtsBody {
   text: string;
-  speakers?: Record<string, string>;
-}
-
-function validateSpeakers(input: Record<string, string> | undefined): Record<string, string> {
-  if (!input || Object.keys(input).length === 0) return DEFAULT_SPEAKERS;
-  const entries = Object.entries(input);
-  if (entries.length > MAX_SPEAKERS) {
-    throw new BadRequest(`Trop de speakers (max ${MAX_SPEAKERS})`);
-  }
-  const out: Record<string, string> = {};
-  for (const [speaker, voice] of entries) {
-    if (!/^[A-Za-z][A-Za-z0-9_]{0,15}$/.test(speaker)) {
-      throw new BadRequest(`Nom de speaker invalide : ${speaker}`);
-    }
-    if (!ALLOWED_VOICES.has(voice)) {
-      throw new BadRequest(`Voix non supportée : ${voice}`);
-    }
-    out[speaker] = voice;
-  }
-  return out;
+  speakers?: unknown;
 }
 
 function validateCategories(input: unknown): string[] {
@@ -181,8 +148,7 @@ Format STRICT :
     const text = validateString(req.body?.text ?? '', 'text', MAX_TTS_TEXT, 1);
     const speakers = validateSpeakers(req.body?.speakers);
 
-    const key = `tts:${hashKey(JSON.stringify({ text, speakers }))}`;
-    const audio = await cachedBinary(key, TTL.tts, async () => {
+    const audio = await cachedBinary(ttsCacheKey(text, speakers), TTL.tts, async () => {
       await enforceQuota(user.id, 'podcastTts');
       return gemini.ttsMultiSpeaker(text, speakers);
     });

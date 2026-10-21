@@ -7,18 +7,24 @@ import {
   SoundOutlined,
 } from '@ant-design/icons';
 import { api } from '@/services/api';
-import { concatBytes, pcmToWavBlob, processWithConcurrency, splitDialogue } from '@/lib/audio';
-
-const SPEAKERS: Record<string, string> = { Alex: 'Charon', Sophie: 'Kore' };
+import { concatBytes, pcmToWavBlob, processWithConcurrency } from '@/lib/audio';
 
 type Mode = 'webspeech' | 'hd';
 
 /**
  * Variante du AudioPlayer pour la page publique /share/:token.
- * Identique en logique mais utilise `api.sharedPodcastTts(token, ...)`
- * au lieu de `api.podcastTts(...)` (qui exige une auth Supabase).
+ * Pour la voix HD, le découpage est fait par le serveur : on demande les
+ * chunks 0..ttsChunkCount-1 via `api.sharedPodcastTts(token, index)`.
  */
-export function SharedAudioPlayer({ script, token }: { script: string; token: string }) {
+export function SharedAudioPlayer({
+  script,
+  token,
+  ttsChunkCount,
+}: {
+  script: string;
+  token: string;
+  ttsChunkCount: number;
+}) {
   const [mode, setMode] = useState<Mode>('webspeech');
 
   return (
@@ -34,7 +40,7 @@ export function SharedAudioPlayer({ script, token }: { script: string; token: st
       {mode === 'webspeech' ? (
         <WebSpeech script={script} />
       ) : (
-        <HdPlayer script={script} token={token} />
+        <HdPlayer token={token} chunkCount={ttsChunkCount} />
       )}
     </Space>
   );
@@ -91,7 +97,7 @@ function WebSpeech({ script }: { script: string }) {
   );
 }
 
-function HdPlayer({ script, token }: { script: string; token: string }) {
+function HdPlayer({ token, chunkCount }: { token: string; chunkCount: number }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [synthesizing, setSynthesizing] = useState(false);
   const [progressText, setProgressText] = useState('');
@@ -103,12 +109,12 @@ function HdPlayer({ script, token }: { script: string; token: string }) {
     setSynthesizing(true);
     setError(null);
     try {
-      const chunks = splitDialogue(script, 800);
-      if (chunks.length === 0) throw new Error('Script vide.');
+      if (chunkCount <= 0) throw new Error('Script vide.');
+      const indexes = Array.from({ length: chunkCount }, (_, i) => i);
       const parts = await processWithConcurrency(
-        chunks,
+        indexes,
         4,
-        (chunk) => api.sharedPodcastTts(token, chunk, SPEAKERS),
+        (index) => api.sharedPodcastTts(token, index),
         (done, total) => setProgressText(`Synthèse ${done}/${total}…`),
       );
       const wav = pcmToWavBlob(concatBytes(parts), 24000, 1);

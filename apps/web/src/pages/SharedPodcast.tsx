@@ -14,6 +14,7 @@ interface Episode {
   sources: string[];
   durationEstimateSec: number;
   createdAt: string;
+  ttsChunkCount: number;
 }
 
 export default function SharedPodcast() {
@@ -35,6 +36,7 @@ export default function SharedPodcast() {
           sources: Array.isArray(ep?.sources) ? ep.sources : [],
           script: ep?.script ?? '',
           durationEstimateSec: ep?.durationEstimateSec ?? 0,
+          ttsChunkCount: ep?.ttsChunkCount ?? 0,
         });
       })
       .catch((e: Error) => setError(e.message || 'Lien invalide'))
@@ -103,7 +105,11 @@ export default function SharedPodcast() {
                 </Card>
 
                 <Card title="Écouter">
-                  <SharedAudioPlayer script={episode.script} token={token!} />
+                  <SharedAudioPlayer
+                    script={episode.script}
+                    token={token!}
+                    ttsChunkCount={episode.ttsChunkCount}
+                  />
                 </Card>
 
                 <Card>
