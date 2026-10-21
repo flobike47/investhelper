@@ -18,7 +18,7 @@ function token() {
 }
 
 async function get<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
-  const res = await client.get<T>(path, { params: { ...params, token: token() } });
+  const res = await client.get<T>(path, { params, headers: { 'X-Finnhub-Token': token() } });
   return res.data;
 }
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { httpsAgent } from './http.js';
+import { DEFAULT_TIMEOUT_MS, httpsAgent } from './http.js';
 
 const FX_URL = 'https://open.er-api.com/v6/latest/EUR';
 
@@ -12,7 +12,7 @@ interface OpenErApi {
 
 export const fx = {
   ratesToEur: async (): Promise<Record<string, number>> => {
-    const res = await axios.get<OpenErApi>(FX_URL, { timeout: 0, httpsAgent });
+    const res = await axios.get<OpenErApi>(FX_URL, { timeout: DEFAULT_TIMEOUT_MS, httpsAgent });
     if (res.data.result !== 'success') {
       throw new Error(res.data['error-type'] ?? 'Erreur taux de change');
     }

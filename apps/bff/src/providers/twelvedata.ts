@@ -34,7 +34,8 @@ export const twelvedata = {
     );
 
     const res = await client.get<TimeSeriesResponse>('/time_series', {
-      params: { symbol, interval, outputsize, apikey: key(), order: 'ASC' },
+      params: { symbol, interval, outputsize, order: 'ASC' },
+      headers: { Authorization: `apikey ${key()}` },
     });
     const data = res.data;
     if (data.status === 'error') {

@@ -22,6 +22,10 @@ import type { NewsApiResponse } from '@/types/news';
  * Supabase est résolue.
  */
 
+/** Requêtes de données. Les générations IA passent un timeout plus long. */
+const DEFAULT_TIMEOUT_MS = 20_000;
+const GENERATION_TIMEOUT_MS = 120_000;
+
 let baseURL = runtimeConfig.bffUrl.replace(/\/+$/, '');
 let token = '';
 let client: AxiosInstance | null = null;
@@ -36,7 +40,7 @@ function getClient(): AxiosInstance {
   if (!client) {
     client = axios.create({
       baseURL: baseURL || (typeof window !== 'undefined' ? window.location.origin : ''),
-      timeout: 0,
+      timeout: DEFAULT_TIMEOUT_MS,
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
   }
@@ -48,8 +52,8 @@ async function get<T>(path: string, params?: Record<string, string | number | un
   return res.data;
 }
 
-async function post<T, B = unknown>(path: string, body: B): Promise<T> {
-  const res = await getClient().post<T>(`/api${path}`, body);
+async function post<T, B = unknown>(path: string, body: B, timeout?: number): Promise<T> {
+  const res = await getClient().post<T>(`/api${path}`, body, { timeout });
   return res.data;
 }
 
@@ -154,14 +158,14 @@ export const api = {
     get<MarketThemes>('/analysis/themes', { sectors: sectors.join(',') }),
 
   podcastScript: (categories: string[], targetMinutes: number | 'auto' = 'auto') =>
-    post<PodcastScriptResult>('/podcast/script', { categories, targetMinutes }),
+    post<PodcastScriptResult>('/podcast/script', { categories, targetMinutes }, GENERATION_TIMEOUT_MS),
 
   /** Renvoie un Uint8Array de PCM brut 16-bit 24kHz mono. Le caller wrap WAV. */
   podcastTts: async (text: string, speakers?: Record<string, string>): Promise<Uint8Array> => {
     const res = await getClient().post(
       '/api/podcast/tts',
       { text, speakers },
-      { responseType: 'arraybuffer' },
+      { responseType: 'arraybuffer', timeout: GENERATION_TIMEOUT_MS },
     );
     return new Uint8Array(res.data as ArrayBuffer);
   },
@@ -213,7 +217,7 @@ export const api = {
     const res = await getClient().post(
       `/api/public/podcast/${encodeURIComponent(token)}/tts`,
       { text, speakers },
-      { responseType: 'arraybuffer' },
+      { responseType: 'arraybuffer', timeout: GENERATION_TIMEOUT_MS },
     );
     return new Uint8Array(res.data as ArrayBuffer);
   },
