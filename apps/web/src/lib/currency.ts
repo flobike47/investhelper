@@ -34,15 +34,18 @@ export function inferCurrency(symbol: string): string {
 
 /**
  * @param rates { USD: 1.04, GBP: 0.83, ... } where 1 EUR = X currency
+ * @returns le montant en EUR, ou null si le taux manque — jamais le montant
+ *          natif présenté comme des euros.
  */
 export function convertToEur(
-  amount: number,
+  amount: number | null | undefined,
   currency: string,
   rates: Record<string, number> | null | undefined,
-): number {
+): number | null {
+  if (amount === null || amount === undefined || !Number.isFinite(amount)) return null;
   if (currency === 'EUR') return amount;
   const rate = rates?.[currency];
-  if (!rate || rate === 0) return amount; // pas de taux disponible → on laisse brut
+  if (!rate) return null;
   return amount / rate;
 }
 

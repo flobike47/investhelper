@@ -23,7 +23,7 @@ import { SignalTag } from '@/components/common/SignalTag';
 import { buildPlaybook } from '@/lib/playbook';
 import { findRsiAnalog, pickBucketFromRsi } from '@/lib/historicalAnalog';
 import { lastDefined, rsi } from '@/lib/indicators';
-import { formatEur, formatNative, inferCurrency, priceToEur } from '@/lib/currency';
+import { convertToEur, formatEur, formatNative, inferCurrency, priceToEur } from '@/lib/currency';
 import { describeError } from '@/lib/watchlistSummary';
 import { formatSignedPct } from '@/lib/format';
 import { SENTIMENT_LABELS } from '@/components/stocks/sentiment';
@@ -91,14 +91,10 @@ function PickCard({ rank, pick, horizon }: { rank: number; pick: ThematicPick; h
   });
 
   const nativeCurrency = inferCurrency(pick.ticker.symbol);
-  // Sans taux de change, on renvoie null plutôt qu'un montant natif étiqueté en euros
-  // (convertToEur laisse le montant brut quand le taux manque).
-  const toEur = (v: number | null | undefined): number | null => {
-    if (v === null || v === undefined || !Number.isFinite(v)) return null;
-    if (nativeCurrency === 'EUR') return v;
-    const rate = rates?.[nativeCurrency];
-    return rate ? v / rate : null;
-  };
+  // Sans taux de change, convertToEur renvoie null plutôt qu'un montant natif
+  // étiqueté en euros.
+  const toEur = (v: number | null | undefined): number | null =>
+    convertToEur(v, nativeCurrency, rates);
 
   const playbook = buildPlaybook({
     horizon,
