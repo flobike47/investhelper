@@ -28,8 +28,6 @@ export default function SharedPodcast() {
     api
       .getSharedEpisode(token)
       .then((ep) => {
-        // eslint-disable-next-line no-console
-        console.log('[shared-podcast] response from BFF:', ep);
         // Normalise pour ne jamais avoir d'undefined sur les arrays
         setEpisode({
           ...ep,
