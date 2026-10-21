@@ -20,17 +20,34 @@ export class QuotaExceeded extends Error {
   }
 }
 
-export async function enforceQuota(userId: string, bucket: QuotaBucket): Promise<void> {
+/**
+ * `subject` = id de l'entité limitée (user.id).
+ *
+ * Création de la clé avec TTL + incrément dans une seule transaction MULTI :
+ * avec INCR puis EXPIRE séparés, un échec entre les deux laissait une clé
+ * sans expiration → quota bloqué définitivement.
+ */
+export async function enforceQuota(subject: string, bucket: QuotaBucket): Promise<void> {
   const { max, windowSec } = QUOTAS[bucket];
-  const key = `quota:${bucket}:${userId}`;
+  const key = `quota:${bucket}:${subject}`;
 
   try {
-    const count = await redis.incr(key);
-    if (count === 1) {
+    const res = await redis
+      .multi()
+      .set(key, 0, 'EX', windowSec, 'NX')
+      .incr(key)
+      .ttl(key)
+      .exec();
+    if (!res) return; // transaction annulée — passthrough
+    const count = Number(res[1]?.[1] ?? 0);
+    let ttl = Number(res[2]?.[1] ?? -1);
+    // Auto-réparation des clés restées sans TTL (créées par l'ancienne
+    // implémentation INCR puis EXPIRE non atomique).
+    if (ttl === -1) {
       await redis.expire(key, windowSec);
+      ttl = windowSec;
     }
     if (count > max) {
-      const ttl = await redis.ttl(key);
       throw new QuotaExceeded(bucket, max, ttl > 0 ? ttl : windowSec);
     }
   } catch (e) {
