@@ -7,7 +7,7 @@ const KEY = ['watchlist'];
 
 /**
  * Drop-in remplacement de l'ancien `useWatchlist` Zustand :
- *  `{ tickers, add, remove, reset }`
+ *  `{ tickers, loading, add, remove }` (+ `addAsync`, `error`).
  *
  * "reset" est volontairement absent : pas de notion de "watchlist par défaut"
  * côté serveur. L'utilisateur démarre vide et ajoute ses tickers.
@@ -58,7 +58,15 @@ export function useWatchlist() {
   return {
     tickers: query.data ?? [],
     loading: query.isLoading,
+    /** Erreur de chargement de la watchlist (ApiError, `.message` lisible). */
+    error: query.error,
     add: (ticker: string) => addMut.mutate(ticker),
+    /**
+     * Variante qui résout une fois l'ajout confirmé par le serveur (rejette sinon).
+     * Le toast d'erreur et le rollback sont déjà gérés ici : l'appelant n'affiche
+     * que le succès.
+     */
+    addAsync: (ticker: string) => addMut.mutateAsync(ticker),
     remove: (ticker: string) => removeMut.mutate(ticker),
   };
 }
