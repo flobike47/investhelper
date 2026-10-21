@@ -19,6 +19,8 @@ interface UseThematicPicksResult {
   themesError: Error | null;
   picks: ThematicPick[];
   picksLoading: boolean;
+  /** Candidats non classés faute de score, avec l'erreur qui l'explique. */
+  picksErrors: { symbol: string; error: Error }[];
 }
 
 function aggregateThemeBias(
@@ -77,11 +79,18 @@ export function useThematicPicks(horizon: Horizon, topN = 5): UseThematicPicksRe
     }));
   }, [analyzed, candidates, themesQuery.data, topN]);
 
+  // Un candidat en erreur et sans score est exclu du classement : on le
+  // remonte pour ne pas afficher un « aucune recommandation » trompeur.
+  const picksErrors = analyzed
+    .filter((a) => !a.loading && a.error !== null && a.score === null)
+    .map((a) => ({ symbol: a.symbol, error: a.error as Error }));
+
   return {
     themes: themesQuery.data?.themes,
     themesLoading: themesQuery.isLoading,
     themesError: themesQuery.error as Error | null,
     picks,
     picksLoading: themesQuery.isLoading || analyzed.some((a) => a.loading),
+    picksErrors,
   };
 }

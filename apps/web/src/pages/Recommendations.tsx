@@ -10,6 +10,7 @@ import {
   Space,
   Tag,
   Typography,
+  theme,
 } from 'antd';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { HORIZONS, HORIZON_LIST, type Horizon } from '@/constants/horizons';
@@ -22,7 +23,10 @@ import { SignalTag } from '@/components/common/SignalTag';
 import { buildPlaybook } from '@/lib/playbook';
 import { findRsiAnalog, pickBucketFromRsi } from '@/lib/historicalAnalog';
 import { lastDefined, rsi } from '@/lib/indicators';
-import { convertToEur, formatEur, inferCurrency, priceToEur } from '@/lib/currency';
+import { formatEur, formatNative, inferCurrency, priceToEur } from '@/lib/currency';
+import { describeError } from '@/lib/watchlistSummary';
+import { formatSignedPct } from '@/lib/format';
+import { SENTIMENT_LABELS } from '@/components/stocks/sentiment';
 
 function ThemeBanner({ themes }: { themes: { name: string; direction: string; summary: string }[] }) {
   return (
@@ -51,6 +55,21 @@ function ThemeBanner({ themes }: { themes: { name: string; direction: string; su
   );
 }
 
+/** Liste compacte des erreurs de candidats (les premières suffisent à diagnostiquer). */
+function PickErrorList({ errors }: { errors: { symbol: string; error: Error }[] }) {
+  const shown = errors.slice(0, 5);
+  return (
+    <ul style={{ margin: 0, paddingLeft: 18 }}>
+      {shown.map(({ symbol, error }) => (
+        <li key={symbol}>
+          <strong>{symbol}</strong> : {describeError(error)}
+        </li>
+      ))}
+      {errors.length > shown.length && <li>… et {errors.length - shown.length} autre(s)</li>}
+    </ul>
+  );
+}
+
 function horizonToAnalogDays(h: Horizon): number {
   return h === 'short' ? 21 : h === 'medium' ? 63 : 252;
 }
@@ -61,6 +80,7 @@ function PickCard({ rank, pick, horizon }: { rank: number; pick: ThematicPick; h
   const { data: news } = useCompanyNews(pick.ticker.symbol, 14);
   const sentiment = useTickerSentiment(pick.ticker.symbol);
   const { data: rates } = useFxRates();
+  const { token } = theme.useToken();
 
   const currentRsi =
     candle && candle.s === 'ok' ? lastDefined(rsi(candle.c, cfg.rsiPeriod)) : null;
@@ -71,8 +91,14 @@ function PickCard({ rank, pick, horizon }: { rank: number; pick: ThematicPick; h
   });
 
   const nativeCurrency = inferCurrency(pick.ticker.symbol);
-  const toEur = (v: number | null | undefined): number | null =>
-    v === null || v === undefined ? null : convertToEur(v, nativeCurrency, rates);
+  // Sans taux de change, on renvoie null plutôt qu'un montant natif étiqueté en euros
+  // (convertToEur laisse le montant brut quand le taux manque).
+  const toEur = (v: number | null | undefined): number | null => {
+    if (v === null || v === undefined || !Number.isFinite(v)) return null;
+    if (nativeCurrency === 'EUR') return v;
+    const rate = rates?.[nativeCurrency];
+    return rate ? v / rate : null;
+  };
 
   const playbook = buildPlaybook({
     horizon,
@@ -118,7 +144,8 @@ function PickCard({ rank, pick, horizon }: { rank: number; pick: ThematicPick; h
             )}
             {sentiment.data && (
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                Sentiment news 14j : <strong>{sentiment.data.sentiment}</strong> ({news?.length ?? 0} articles)
+                Sentiment news 14j : <strong>{SENTIMENT_LABELS[sentiment.data.sentiment]}</strong>{' '}
+                <span className="tabular-nums">({news ? news.length : '…'} articles)</span>
               </Typography.Text>
             )}
           </Space>
@@ -132,12 +159,12 @@ function PickCard({ rank, pick, horizon }: { rank: number; pick: ThematicPick; h
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             Prix actuel
           </Typography.Text>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>
+          <div className="tabular-nums" style={{ fontWeight: 700, fontSize: 18 }}>
             {priceToEur(pick.ticker.price, pick.ticker.symbol, rates)}
           </div>
           {nativeCurrency !== 'EUR' && pick.ticker.price !== null && (
-            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-              soit {pick.ticker.price.toFixed(2)} {nativeCurrency}
+            <Typography.Text type="secondary" className="tabular-nums" style={{ fontSize: 11 }}>
+              soit {formatNative(pick.ticker.price, nativeCurrency)}
             </Typography.Text>
           )}
         </Col>
@@ -147,12 +174,18 @@ function PickCard({ rank, pick, horizon }: { rank: number; pick: ThematicPick; h
             Score global
           </Typography.Text>
           <Progress
+            className="tabular-nums"
             percent={Math.round((s.score + 100) / 2)}
             format={() => `${s.score}`}
             strokeColor={
-              s.score >= 30 ? '#22c55e' : s.score <= -30 ? '#ef4444' : '#f59e0b'
+              s.score >= 30
+                ? token.colorSuccess
+                : s.score <= -30
+                  ? token.colorError
+                  : token.colorWarning
             }
             size="small"
+            aria-label={`Score global ${s.score} sur une échelle de -100 à 100`}
           />
         </Col>
 
@@ -203,16 +236,19 @@ function PickCard({ rank, pick, horizon }: { rank: number; pick: ThematicPick; h
               <Tag key={i}>{r}</Tag>
             ))}
             {s.analyst.totalAnalysts > 0 && (
-              <Tag color="cyan">
+              <Tag color="cyan" className="tabular-nums">
                 {s.analyst.totalAnalysts} analystes · {(s.analyst.buyRatio * 100).toFixed(0)}% buy
                 {s.analyst.targetMean !== null &&
                   ` · cible ${formatEur(toEur(s.analyst.targetMean))}`}
               </Tag>
             )}
             {analog && analog.occurrences > 0 && analog.medianReturn !== null && (
-              <Tag color="purple">
-                Analog passé : {(analog.medianReturn * 100).toFixed(1)}% médian sur {analog.horizonDays}j
-                ({analog.occurrences} cas, {((analog.positiveRatio ?? 0) * 100).toFixed(0)}% positifs)
+              <Tag color="purple" className="tabular-nums">
+                Analog passé : {formatSignedPct(analog.medianReturn * 100, 1)} médian sur{' '}
+                {analog.horizonDays}j ({analog.occurrences} cas
+                {analog.positiveRatio !== null &&
+                  `, ${(analog.positiveRatio * 100).toFixed(0)}\u202f% positifs`}
+                )
               </Tag>
             )}
           </Space>
@@ -224,11 +260,12 @@ function PickCard({ rank, pick, horizon }: { rank: number; pick: ThematicPick; h
 
 export default function Recommendations() {
   const { horizon, setHorizon } = useUserSettings();
-  const { themes, themesLoading, themesError, picks, picksLoading } =
+  const { themes, themesLoading, themesError, picks, picksLoading, picksErrors } =
     useThematicPicks(horizon, 5);
+  const themesReady = !themesLoading && !themesError;
+  const allPicksFailed = themesReady && !picksLoading && picks.length === 0 && picksErrors.length > 0;
 
   return (
-    
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Row gutter={[16, 16]} align="middle" justify="space-between">
           <Col>
@@ -270,12 +307,28 @@ export default function Recommendations() {
             type="error"
             showIcon
             message="Analyse IA des thèmes indisponible"
-            description={themesError.message}
+            description={describeError(themesError)}
           />
         )}
         {themes && themes.length > 0 && <ThemeBanner themes={themes} />}
 
-        {!picksLoading && picks.length === 0 && (
+        {allPicksFailed && (
+          <Alert
+            type="error"
+            showIcon
+            message="Impossible d'analyser les titres candidats"
+            description={<PickErrorList errors={picksErrors} />}
+          />
+        )}
+        {themesReady && !picksLoading && picks.length > 0 && picksErrors.length > 0 && (
+          <Alert
+            type="warning"
+            showIcon
+            message={`${picksErrors.length} titre(s) candidat(s) non analysé(s), exclu(s) du classement`}
+            description={<PickErrorList errors={picksErrors} />}
+          />
+        )}
+        {themesReady && !picksLoading && picks.length === 0 && picksErrors.length === 0 && (
           <Empty description="Aucune recommandation calculable pour l'instant." />
         )}
         {picksLoading && <Skeleton active paragraph={{ rows: 6 }} />}
@@ -286,6 +339,5 @@ export default function Recommendations() {
           ))}
         </Space>
       </Space>
-    
   );
 }
