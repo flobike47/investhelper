@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Alert, Card, Collapse, Space, Spin, Tag, Typography, ConfigProvider } from 'antd';
+import { Alert, Card, Collapse, Layout, Space, Spin, Tag, Typography, ConfigProvider } from 'antd';
 import dayjs from 'dayjs';
 import { api } from '@/services/api';
 import { SharedAudioPlayer } from '@/components/podcast/SharedAudioPlayer';
-import { darkTheme } from '@/theme';
+import { darkTheme, documentThemeFor } from '@/theme';
+import { applyDocumentTheme } from '@/lib/documentTheme';
 
 interface Episode {
   id: string;
@@ -22,6 +23,10 @@ export default function SharedPodcast() {
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Page publique volontairement toujours en sombre : barre d'état mobile et
+  // fond du document aussi, quel que soit le thème mémorisé sur l'appareil.
+  useEffect(() => applyDocumentTheme(documentThemeFor('dark')), []);
 
   useEffect(() => {
     if (!token) return;
@@ -45,14 +50,17 @@ export default function SharedPodcast() {
 
   return (
     <ConfigProvider theme={darkTheme}>
-      <div
+      {/* Layout antd : fond = token du thème sombre, sans couleur en dur. */}
+      <Layout
         style={{
-          minHeight: '100vh',
-          background: '#0b0d12',
-          padding: '40px 16px',
+          minHeight: '100dvh',
+          paddingTop: 'calc(40px + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))',
+          paddingLeft: 'calc(16px + env(safe-area-inset-left, 0px))',
+          paddingRight: 'calc(16px + env(safe-area-inset-right, 0px))',
         }}
       >
-        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <div style={{ width: '100%', maxWidth: 800, margin: '0 auto' }}>
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <div style={{ textAlign: 'center', marginBottom: 8 }}>
               <Typography.Title level={2} style={{ margin: 0 }}>
@@ -153,7 +161,7 @@ export default function SharedPodcast() {
             )}
           </Space>
         </div>
-      </div>
+      </Layout>
     </ConfigProvider>
   );
 }

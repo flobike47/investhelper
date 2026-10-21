@@ -9,7 +9,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b0d12" />
+    <!-- Couleur de la barre d'état avant le boot de React, selon le thème de
+         l'OS. Ensuite App.tsx (lib/documentTheme.ts) y écrit la couleur du
+         thème choisi dans l'app. Valeurs = DOCUMENT_COLORS de src/theme.ts.
+         Pas de maximum-scale / user-scalable=no : le zoom reste possible. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#13161d" />
     <meta name="description" content="Tableau de bord d'aide à l'investissement actions et ETF" />
     <title>InvestHelper</title>
     <!-- Runtime config injectée au boot conteneur (sed). En dev les
