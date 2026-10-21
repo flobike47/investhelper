@@ -1,16 +1,26 @@
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { theme } from 'antd';
 import type { Candle } from '@/types/finnhub';
+import { formatSignedPct } from '@/lib/format';
 import dayjs from 'dayjs';
+
+const priceFormatter = new Intl.NumberFormat('fr-FR', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 export function PriceSparkline({
   candle,
   height = 60,
-  color = '#22c55e',
+  color,
 }: {
   candle: Candle | null | undefined;
   height?: number;
+  /** Couleur de tendance haussière ; par défaut `colorSuccess` du thème. */
   color?: string;
 }) {
+  const { token } = theme.useToken();
+
   if (!candle || candle.s !== 'ok' || !candle.c?.length) {
     return (
       <div
@@ -18,7 +28,7 @@ export function PriceSparkline({
           height,
           display: 'grid',
           placeItems: 'center',
-          color: '#666',
+          color: token.colorTextSecondary,
           fontSize: 12,
         }}
       >
@@ -32,8 +42,7 @@ export function PriceSparkline({
     candle.t.length > 1
       ? (candle.t[candle.t.length - 1] - candle.t[0]) / 86400
       : 0;
-  const dateFormat =
-    spanDays > 365 * 2 ? 'MMM YY' : spanDays > 180 ? 'DD MMM' : 'DD MMM';
+  const dateFormat = spanDays > 365 * 2 ? 'MMM YY' : 'DD MMM';
   const tooltipFormat = spanDays > 365 ? 'DD MMM YYYY' : 'DD MMM';
 
   const data = candle.t.map((t, i) => ({
@@ -43,47 +52,61 @@ export function PriceSparkline({
   }));
   const first = candle.c[0];
   const last = candle.c[candle.c.length - 1];
-  const trendColor = last >= first ? color : '#ef4444';
+  const up = last >= first;
+  const trendColor = up ? (color ?? token.colorSuccess) : token.colorError;
+  const periodChangePct = first > 0 ? ((last - first) / first) * 100 : null;
 
   // Réduit le nombre de ticks affichés pour rester lisible
   const tickCount = Math.min(6, data.length);
   const tickInterval = Math.max(0, Math.floor(data.length / tickCount) - 1);
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#1f242e" vertical={false} />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: '#9ca3af', fontSize: 10 }}
-          tickLine={false}
-          axisLine={{ stroke: '#1f242e' }}
-          interval={tickInterval}
-          minTickGap={20}
-        />
-        <YAxis hide domain={['dataMin', 'dataMax']} />
-        <Tooltip
-          contentStyle={{
-            background: '#181c25',
-            border: '1px solid #1f242e',
-            borderRadius: 6,
-            fontSize: 12,
-          }}
-          formatter={(v: number) => v.toFixed(2)}
-          labelFormatter={(_, payload) =>
-            (payload as { payload?: { fullDate?: string } }[])?.[0]?.payload?.fullDate ?? ''
-          }
-          labelStyle={{ color: '#9ca3af' }}
-        />
-        <Line
-          type="monotone"
-          dataKey="price"
-          stroke={trendColor}
-          strokeWidth={2}
-          dot={false}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    // Le graphique n'est pas lisible par un lecteur d'écran : on en donne le résumé.
+    <div
+      role="img"
+      aria-label={`Évolution du cours sur la période : ${formatSignedPct(periodChangePct)}`}
+    >
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart data={data} margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke={token.colorBorderSecondary}
+            vertical={false}
+          />
+          <XAxis
+            dataKey="date"
+            tick={{ fill: token.colorTextSecondary, fontSize: 10 }}
+            tickLine={false}
+            axisLine={{ stroke: token.colorBorderSecondary }}
+            interval={tickInterval}
+            minTickGap={20}
+          />
+          <YAxis hide domain={['dataMin', 'dataMax']} />
+          <Tooltip
+            contentStyle={{
+              background: token.colorBgElevated,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: 6,
+              fontSize: 12,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+            itemStyle={{ color: token.colorText }}
+            formatter={(v: number) => priceFormatter.format(v)}
+            labelFormatter={(_, payload) =>
+              (payload as { payload?: { fullDate?: string } }[])?.[0]?.payload?.fullDate ?? ''
+            }
+            labelStyle={{ color: token.colorTextSecondary }}
+          />
+          <Line
+            type="monotone"
+            dataKey="price"
+            stroke={trendColor}
+            strokeWidth={2}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

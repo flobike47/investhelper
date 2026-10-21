@@ -1,12 +1,13 @@
-import { Card, Col, Row, Space, Tag, Typography, Skeleton, Tooltip } from 'antd';
+import { Button, Card, Col, Row, Space, Tag, Typography, Skeleton, Tooltip, theme } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCandles, useCompanyNews } from '@/hooks/useStockData';
 import { useTickerSentiment } from '@/hooks/useNewsAnalysis';
 import { useNextEarnings } from '@/hooks/useEarnings';
 import { HORIZONS, type Horizon } from '@/constants/horizons';
-import { rsi } from '@/lib/indicators';
-import { lastDefined } from '@/lib/indicators';
+import { lastDefined, rsi } from '@/lib/indicators';
+import { describeError } from '@/lib/watchlistSummary';
+import { formatSignedPct } from '@/lib/format';
 import { findRsiAnalog, pickBucketFromRsi } from '@/lib/historicalAnalog';
 
 const SENTIMENT_COLORS = {
@@ -33,6 +34,7 @@ export function StockInsight({ symbol, horizon }: { symbol: string; horizon: Hor
   const { data: news } = useCompanyNews(symbol, 14);
   const sentiment = useTickerSentiment(symbol);
   const earnings = useNextEarnings(symbol);
+  const { token } = theme.useToken();
 
   const currentRsi =
     candle && candle.s === 'ok' ? lastDefined(rsi(candle.c, cfg.rsiPeriod)) : null;
@@ -49,8 +51,8 @@ export function StockInsight({ symbol, horizon }: { symbol: string; horizon: Hor
       title={
         <Space>
           <Typography.Text strong>{symbol}</Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            ({news?.length ?? 0} actus 14j)
+          <Typography.Text type="secondary" className="tabular-nums" style={{ fontSize: 12 }}>
+            ({news ? news.length : '…'} actus 14j)
           </Typography.Text>
         </Space>
       }
@@ -64,12 +66,14 @@ export function StockInsight({ symbol, horizon }: { symbol: string; horizon: Hor
             {sentiment.isLoading ? (
               <Skeleton.Input active size="small" />
             ) : sentiment.isError ? (
-              <Tag color="red">Analyse IA indisponible</Tag>
+              <Tooltip title={describeError(sentiment.error)}>
+                <Tag color="red">Analyse IA indisponible</Tag>
+              </Tooltip>
             ) : sentiment.data ? (
               <Space wrap>
                 <Tag color={SENTIMENT_COLORS[sentiment.data.sentiment]}>
                   {SENTIMENT_LABELS[sentiment.data.sentiment]}{' '}
-                  ({(sentiment.data.score * 100).toFixed(0)})
+                  <span className="tabular-nums">({(sentiment.data.score * 100).toFixed(0)})</span>
                 </Tag>
                 {sentiment.data.drivers.slice(0, 3).map((d) => (
                   <Tag key={d}>{d}</Tag>
@@ -94,12 +98,16 @@ export function StockInsight({ symbol, horizon }: { symbol: string; horizon: Hor
           <div style={{ marginTop: 4 }}>
             {earnings.isLoading ? (
               <Skeleton.Input active size="small" />
+            ) : earnings.isError ? (
+              <Typography.Text style={{ color: token.colorErrorText, fontSize: 12 }}>
+                Indisponible : {describeError(earnings.error)}
+              </Typography.Text>
             ) : earnings.data ? (
               <Space direction="vertical" size={2}>
-                <Typography.Text strong>
+                <Typography.Text strong className="tabular-nums">
                   {dayjs(earnings.data.date).format('DD MMM YYYY')}
                 </Typography.Text>
-                <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                <Typography.Text type="secondary" className="tabular-nums" style={{ fontSize: 11 }}>
                   {earnings.data.hour === 'bmo'
                     ? 'avant ouverture'
                     : earnings.data.hour === 'amc'
@@ -120,7 +128,9 @@ export function StockInsight({ symbol, horizon }: { symbol: string; horizon: Hor
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               Analog historique
             </Typography.Text>
+            {/* Bouton focalisable : l'explication est accessible au clavier (focus) et au toucher. */}
             <Tooltip
+              trigger={['hover', 'focus']}
               title={
                 <>
                   Médiane des retours observés sur l'historique réel de {symbol}, après les
@@ -129,23 +139,34 @@ export function StockInsight({ symbol, horizon }: { symbol: string; horizon: Hor
                 </>
               }
             >
-              <InfoCircleOutlined style={{ color: '#9ca3af', fontSize: 12 }} />
+              <Button
+                type="text"
+                size="small"
+                aria-label="Comment est calculé l'analog historique"
+                icon={<InfoCircleOutlined style={{ color: token.colorTextSecondary, fontSize: 12 }} />}
+                style={{ width: 24, height: 24, minWidth: 24, padding: 0 }}
+              />
             </Tooltip>
           </Space>
           <div style={{ marginTop: 4 }}>
             {analog && analog.occurrences > 0 ? (
               <Space direction="vertical" size={2}>
-                <Typography.Text strong>
-                  {analog.medianReturn !== null
-                    ? `${(analog.medianReturn * 100).toFixed(1)}%`
-                    : '—'}{' '}
+                <Typography.Text strong className="tabular-nums">
+                  {formatSignedPct(
+                    analog.medianReturn !== null ? analog.medianReturn * 100 : null,
+                    1,
+                  )}{' '}
                   <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                     médian sur {analog.horizonDays}j
                   </Typography.Text>
                 </Typography.Text>
-                <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                <Typography.Text type="secondary" className="tabular-nums" style={{ fontSize: 11 }}>
                   {analog.setupLabel} · {analog.occurrences} occurrences ·{' '}
-                  {((analog.positiveRatio ?? 0) * 100).toFixed(0)}% positifs
+                  {/* ratio inconnu → « — », jamais 0 % */}
+                  {analog.positiveRatio !== null
+                    ? `${(analog.positiveRatio * 100).toFixed(0)}\u202f%`
+                    : '—'}{' '}
+                  positifs
                 </Typography.Text>
               </Space>
             ) : (
