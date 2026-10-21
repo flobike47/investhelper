@@ -36,6 +36,44 @@ export function configureApi(url: string, t: string) {
   client = null;
 }
 
+/** Erreur renvoyée par le BFF : message lisible + reqId pour retrouver le log serveur. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number | null,
+    public reqId: string | null,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+/** Extrait `{ error, reqId }` du corps, y compris pour les réponses binaires (TTS). */
+function readErrorBody(data: unknown): { error?: string; reqId?: string } {
+  try {
+    // toString plutôt qu'instanceof : robuste aux ArrayBuffer d'un autre realm
+    if (Object.prototype.toString.call(data) === '[object ArrayBuffer]') {
+      data = JSON.parse(new TextDecoder().decode(data as ArrayBuffer));
+    }
+    if (data && typeof data === 'object') return data as { error?: string; reqId?: string };
+  } catch {
+    /* corps non JSON */
+  }
+  return {};
+}
+
+export function toApiError(err: unknown): ApiError {
+  if (!axios.isAxiosError(err)) return new ApiError((err as Error)?.message ?? 'Erreur inconnue', null, null);
+  if (err.code === 'ECONNABORTED') return new ApiError('Le serveur met trop de temps à répondre.', null, null);
+  if (!err.response) return new ApiError('Serveur injoignable. Vérifie ta connexion.', null, null);
+  const body = readErrorBody(err.response.data);
+  return new ApiError(
+    body.error ?? `Erreur ${err.response.status}`,
+    err.response.status,
+    body.reqId ?? null,
+  );
+}
+
 function getClient(): AxiosInstance {
   if (!client) {
     client = axios.create({
@@ -43,6 +81,7 @@ function getClient(): AxiosInstance {
       timeout: DEFAULT_TIMEOUT_MS,
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
+    client.interceptors.response.use(undefined, (err) => Promise.reject(toApiError(err)));
   }
   return client;
 }
