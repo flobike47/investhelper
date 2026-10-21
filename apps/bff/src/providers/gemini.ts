@@ -1,7 +1,14 @@
 import { config } from '../config.js';
 import { createProviderClient, ProviderError } from './http.js';
 
-const client = createProviderClient('https://generativelanguage.googleapis.com/v1beta', 'Gemini');
+// Génération longue (script podcast ~8 min, TTS d'un chunk) : timeout large
+// mais borné. Les appels courts (sentiment, thèmes) restent sous ce plafond.
+const GEMINI_TIMEOUT_MS = 90_000;
+const client = createProviderClient(
+  'https://generativelanguage.googleapis.com/v1beta',
+  'Gemini',
+  GEMINI_TIMEOUT_MS,
+);
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
@@ -53,7 +60,7 @@ async function generate(system: string | undefined, user: string, opts: TextOpts
 
   const model = opts.model ?? DEFAULT_MODEL;
   const res = await client.post<GeminiResponse>(`/models/${model}:generateContent`, body, {
-    params: { key: key() },
+    headers: { 'x-goog-api-key': key() },
   });
   if (res.data.promptFeedback?.blockReason) {
     throw new ProviderError(`Gemini blocked: ${res.data.promptFeedback.blockReason}`, 400, 'Gemini');
@@ -106,7 +113,7 @@ export const gemini = {
           speechConfig: { multiSpeakerVoiceConfig: { speakerVoiceConfigs } },
         },
       },
-      { params: { key: key() } },
+      { headers: { 'x-goog-api-key': key() } },
     );
     if (res.data.promptFeedback?.blockReason) {
       throw new ProviderError(`Gemini TTS blocked: ${res.data.promptFeedback.blockReason}`, 400, 'Gemini');

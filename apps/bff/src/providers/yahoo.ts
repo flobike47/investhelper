@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { httpsAgent } from './http.js';
+import { DEFAULT_TIMEOUT_MS, httpsAgent } from './http.js';
 import { redis } from '../cache.js';
 import type { RecommendationTrend, PriceTarget, EarningsEvent } from '../types.js';
 
@@ -67,6 +67,7 @@ async function getSession(force = false) {
     maxRedirects: 0,
     validateStatus: () => true,
     httpsAgent,
+    timeout: DEFAULT_TIMEOUT_MS,
   });
   const setCookie = r1.headers['set-cookie'];
   if (!setCookie || setCookie.length === 0) {
@@ -77,6 +78,7 @@ async function getSession(force = false) {
   const r2 = await axios.get('https://query2.finance.yahoo.com/v1/test/getcrumb', {
     headers: { 'User-Agent': USER_AGENT, Cookie: cookie },
     httpsAgent,
+    timeout: DEFAULT_TIMEOUT_MS,
   });
   const crumb = String(r2.data).trim();
   if (!crumb) throw new Error('Yahoo : crumb vide');
@@ -131,6 +133,7 @@ async function quoteSummary(symbol: string, modules: string): Promise<YahooSumma
         params: { modules, crumb: session.crumb },
         validateStatus: () => true,
         httpsAgent,
+        timeout: DEFAULT_TIMEOUT_MS,
       },
     );
   }

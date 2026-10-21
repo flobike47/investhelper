@@ -35,17 +35,31 @@ export class ProviderError extends Error {
   }
 }
 
-export function createProviderClient(baseURL: string, provider: string): AxiosInstance {
+/** Délai max par appel sortant. Sans timeout, un provider qui ne répond
+ *  pas bloque la requête client et une socket du pool indéfiniment. */
+export const DEFAULT_TIMEOUT_MS = 10_000;
+
+export function createProviderClient(
+  baseURL: string,
+  provider: string,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): AxiosInstance {
   const client = axios.create({
     baseURL,
-    timeout: 0,
+    timeout: timeoutMs,
     httpsAgent,
     httpAgent,
   });
   client.interceptors.response.use(
     (r) => r,
     (err: AxiosError<{ error?: string; message?: string }>) => {
-      const status = err.response?.status ?? 500;
+      // Pas de réponse : timeout → 504, autre erreur réseau → 502.
+      // Jamais 500 : ce n'est pas un bug du BFF mais une panne amont.
+      const timedOut = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+      const status = err.response?.status ?? (timedOut ? 504 : 502);
+      if (timedOut) {
+        return Promise.reject(new ProviderError(`${provider} : délai dépassé`, status, provider));
+      }
       const msg =
         err.response?.data?.error ||
         err.response?.data?.message ||

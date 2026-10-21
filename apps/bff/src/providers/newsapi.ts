@@ -10,7 +10,7 @@ function key() {
 }
 
 async function get<T>(path: string, params: Record<string, string | number>): Promise<T> {
-  const res = await client.get<T>(path, { params: { ...params, apiKey: key() } });
+  const res = await client.get<T>(path, { params, headers: { 'X-Api-Key': key() } });
   return res.data;
 }
 
