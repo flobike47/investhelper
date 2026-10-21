@@ -8,14 +8,16 @@ export const SEARCH_DEBOUNCE_MS = 250;
 /**
  * Recherche de symboles, debouncée. Chaque saisie a sa propre clé de cache :
  * une réponse lente pour « AP » ne peut pas écraser celle de « APPL », TanStack
- * Query n'expose que les données de la clé courante.
+ * Query n'expose que les données de la clé courante, et la requête obsolète
+ * est annulée côté HTTP via l'AbortSignal.
  */
 export function useSymbolSearch(rawQuery: string) {
   const q = useDebouncedValue(rawQuery.trim(), SEARCH_DEBOUNCE_MS);
 
   const query = useQuery({
     queryKey: ['symbol-search', q],
-    queryFn: () => api.search(q),
+    // Le signal annule la requête HTTP devenue obsolète (saisie modifiée).
+    queryFn: ({ signal }) => api.search(q, signal),
     enabled: q.length >= 1,
     placeholderData: keepPreviousData,
     staleTime: 10 * 60_000,

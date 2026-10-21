@@ -81,7 +81,7 @@ describe('Watchlist', () => {
     // Laisse passer un éventuel second déclenchement avant de compter
     await new Promise((r) => setTimeout(r, 400));
     expect(api.search).toHaveBeenCalledTimes(1);
-    expect(api.search).toHaveBeenCalledWith('APPL');
+    expect(api.search).toHaveBeenCalledWith('APPL', expect.any(AbortSignal));
   });
 
   it('donne un libellé explicite au bouton de suppression', async () => {

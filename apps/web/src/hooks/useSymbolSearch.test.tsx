@@ -32,7 +32,7 @@ describe('useSymbolSearch', () => {
       wrapper,
       initialProps: { q: 'A' },
     });
-    await waitFor(() => expect(api.search).toHaveBeenCalledWith('A'));
+    await waitFor(() => expect(api.search).toHaveBeenCalledWith('A', expect.any(AbortSignal)));
 
     rerender({ q: 'AP' });
     await waitFor(() => expect(result.current.results[0]?.symbol).toBe('AP'));
