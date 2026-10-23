@@ -19,6 +19,10 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-23.5',
+    improved: ['Sur iPhone, la zone de l’heure et de la batterie est unie, sans effet flou.'],
+  },
+  {
     id: '2026-10-23.4',
     fixed: ['Sur iPhone, les messages de confirmation et la barre de chargement ne passent plus sous l’heure et la batterie.'],
   },

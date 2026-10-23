@@ -202,7 +202,9 @@ export default function AppLayout() {
     return (
       <div style={{ minHeight: '100dvh', background: token.colorBgLayout, overflowX: 'clip' }}>
         {/* App installée (barre d'état translucide) : le contenu qui défile ne
-            doit pas passer sous l'heure et la batterie. Hauteur nulle hors PWA. */}
+            doit pas passer sous l'heure et la batterie. Fond opaque, sans flou :
+            barre d'état unie, pas de fondu sous la Dynamic Island. Hauteur
+            nulle hors PWA. */}
         <div
           aria-hidden
           style={{
@@ -212,9 +214,7 @@ export default function AppLayout() {
             right: 0,
             height: SAFE_TOP,
             zIndex: 1001,
-            background: `color-mix(in srgb, ${token.colorBgLayout} 82%, transparent)`,
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
+            background: token.colorBgLayout,
           }}
         />
         <NavigationProgress />
