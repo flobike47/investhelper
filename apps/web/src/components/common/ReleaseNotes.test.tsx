@@ -25,7 +25,9 @@ describe("Nouveautés à l'ouverture", () => {
   it("affiche les notes pas encore vues sur cet appareil", async () => {
     renderWithProviders(<ReleaseNotesOnLaunch />);
     expect(await screen.findByText('Nouveautés')).toBeInTheDocument();
-    expect(screen.getByText(LATEST.added?.[0] ?? LATEST.fixed?.[0] ?? '')).toBeInTheDocument();
+    // Première ligne de la dernière note, quelle que soit sa section
+    const firstLine = [...(LATEST.added ?? []), ...(LATEST.fixed ?? []), ...(LATEST.improved ?? [])][0];
+    expect(screen.getByText(firstLine)).toBeInTheDocument();
   });
 
   it("« C'est noté » enregistre la dernière note et ferme", async () => {
