@@ -31,4 +31,11 @@ export const config = {
   newsApiKey: opt('NEWSAPI_API_KEY'),
   fmpKey: opt('FMP_API_KEY'),
   geminiKey: opt('GEMINI_API_KEY'),
+
+  // Notifications Web Push (VAPID) — optionnelles : sans les trois, la
+  // fonctionnalité est désactivée (routes en 503, pas de rappel planifié).
+  // Générer une paire : npx web-push generate-vapid-keys
+  vapidPublicKey: opt('VAPID_PUBLIC_KEY'),
+  vapidPrivateKey: opt('VAPID_PRIVATE_KEY'),
+  vapidSubject: opt('VAPID_SUBJECT'), // mailto:toi@exemple.com
 };

@@ -13,6 +13,8 @@ export const QUOTAS = {
   // Un épisode de 8 min ≈ 15 chunks ; 200 laisse de la marge tout en
   // bornant la facture si un lien fuit.
   publicTts:     { max: 200, windowSec: 24 * 60 * 60 },
+  // Bouton « Envoyer un test » des réglages : borne les envois manuels.
+  pushTest:      { max: 10, windowSec: 24 * 60 * 60 },
 } as const;
 
 export type QuotaBucket = keyof typeof QUOTAS;
