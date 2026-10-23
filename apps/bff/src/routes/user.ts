@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requireUser } from '../auth.js';
 import { supabaseAdmin } from '../providers/supabaseAdmin.js';
+import { insertEpisode } from '../episodes.js';
 import { readQuota } from '../ratelimit.js';
 import {
   BadRequest,
@@ -229,29 +230,13 @@ export async function registerUserRoutes(app: FastifyInstance) {
     );
     const duration = clampInt(ep.durationEstimateSec, 240, 0, 3600);
 
-    // Limite : 100 épisodes par user
-    const { count } = await supabaseAdmin
-      .from('podcast_episodes')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-    if ((count ?? 0) >= 100) {
-      throw new BadRequest('Trop d\'épisodes stockés (max 100). Supprime-en avant.');
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('podcast_episodes')
-      .insert({
-        user_id: user.id,
-        date: ep.date,
-        categories,
-        script,
-        sources,
-        duration_estimate_sec: duration,
-      })
-      .select('id, created_at')
-      .single();
-    if (error) throw error;
-    return { id: data.id, createdAt: data.created_at };
+    return insertEpisode(user.id, {
+      date: ep.date,
+      categories,
+      script,
+      sources,
+      durationEstimateSec: duration,
+    });
   });
 
   app.delete<{ Params: { id: string } }>('/user/podcast/episodes/:id', async (req) => {
