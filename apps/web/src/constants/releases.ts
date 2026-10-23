@@ -19,6 +19,10 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-23.2',
+    fixed: ['Sur iPhone, la barre de navigation est bien collée en bas de l’écran dès l’ouverture de l’app.'],
+  },
+  {
     id: '2026-10-23',
     added: [
       'Rappel du podcast : chaque jour à l’heure choisie, ton épisode est préparé et une notification te prévient (Réglages → Notifications).',
