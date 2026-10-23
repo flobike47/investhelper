@@ -5,6 +5,8 @@ import { useAuth } from '@/lib/auth';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { usePlayer } from '@/hooks/usePlayer';
 import { MiniPlayer } from '@/components/podcast/MiniPlayer';
+import { ReleaseNotesOnLaunch } from '@/components/common/ReleaseNotes';
+import { UpdateBanner } from '@/components/common/UpdateBanner';
 import { NAV_ITEMS } from './nav';
 
 // Zones sûres iOS (encoche, Dynamic Island, barre d'accueil). viewport-fit=cover
@@ -218,6 +220,7 @@ export default function AppLayout() {
             padding: `calc(12px + ${SAFE_TOP}) calc(16px + ${SAFE_RIGHT}) calc(${reserved}px + ${SAFE_BOTTOM}) calc(16px + ${SAFE_LEFT})`,
           }}
         >
+          <UpdateBanner />
           <Outlet />
         </main>
         {episode && (
@@ -234,6 +237,7 @@ export default function AppLayout() {
           </div>
         )}
         <TabBar />
+        <ReleaseNotesOnLaunch />
       </div>
     );
   }
@@ -250,9 +254,11 @@ export default function AppLayout() {
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <UpdateBanner />
           <Outlet />
         </div>
       </main>
+      <ReleaseNotesOnLaunch />
     </div>
   );
 }

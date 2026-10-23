@@ -58,3 +58,29 @@ export function registerServiceWorker(
     console.warn('[pwa] service worker non enregistré', err);
   });
 }
+
+type FetchLike = (url: string, init?: RequestInit) => Promise<{ ok: boolean; json: () => Promise<unknown> }>;
+
+/**
+ * Identifiant du build actuellement en ligne (`version.json`, écrit par
+ * vite.config.ts), ou null s'il est illisible : hors ligne, fichier absent
+ * (le SPA fallback renvoie alors du HTML)… Dans le doute, pas de bandeau.
+ */
+export async function fetchDeployedBuild(
+  fetchFn: FetchLike = fetch,
+  baseUri: string = document.baseURI,
+): Promise<string | null> {
+  try {
+    const res = await fetchFn(new URL('version.json', baseUri).href, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { build?: unknown } | null;
+    return typeof body?.build === 'string' ? body.build : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Vrai quand une autre version que celle qui tourne a été mise en prod. */
+export function isNewBuild(running: string, deployed: string | null): boolean {
+  return deployed !== null && deployed !== running;
+}

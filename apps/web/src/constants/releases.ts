@@ -1,0 +1,49 @@
+/**
+ * Notes de mise à jour affichées à l'ouverture de l'app (« Nouveautés »).
+ *
+ * Rédigées pour l'utilisateur, pas pour le dev : ce qu'il voit ou ressent,
+ * en une phrase courte. Une entrée par mise en prod d'un changement visible,
+ * datée du jour du déploiement. Du plus récent au plus ancien.
+ */
+
+export interface Release {
+  /** Date de mise en prod, YYYY-MM-DD (suffixe .2, .3 si plusieurs le même jour). Identifiant trié en chaîne. */
+  id: string;
+  /** Ajouté */
+  added?: string[];
+  /** Corrigé */
+  fixed?: string[];
+  /** Revu */
+  improved?: string[];
+}
+
+export const RELEASES: Release[] = [
+  {
+    id: '2026-10-23',
+    added: [
+      'Rappel du podcast : chaque jour à l’heure choisie, ton épisode est préparé et une notification te prévient (Réglages → Notifications).',
+      'Bouton « Envoyer un test » pour vérifier que les notifications arrivent bien sur ton appareil.',
+      'Ce résumé des nouveautés, affiché après chaque mise à jour et consultable dans Réglages → À propos.',
+      'Quand une nouvelle version est en ligne, un bandeau propose de recharger l’app.',
+    ],
+    fixed: ['Les notifications arrivent désormais aussi sur iPhone.'],
+  },
+  {
+    id: '2026-10-21',
+    added: [
+      'Nouvelle interface, pensée pour le téléphone comme pour l’ordinateur.',
+      'InvestHelper s’installe sur l’écran d’accueil de l’iPhone et s’ouvre en plein écran.',
+      'Le podcast continue de jouer quand tu changes de page.',
+    ],
+    fixed: [
+      'Podcast : la durée choisie est respectée et la lecture ne se coupe plus.',
+      'Changer un réglage n’écrase plus tes autres préférences.',
+      'Les erreurs de chargement de la watchlist s’affichent au lieu d’une liste vide.',
+      'Les montants dans une autre devise ne sont plus présentés comme des euros.',
+    ],
+    improved: [
+      'Recherche de symboles plus rapide.',
+      'Actualités : une erreur n’affecte plus que son onglet, et les images se chargent au fil du défilement.',
+    ],
+  },
+];

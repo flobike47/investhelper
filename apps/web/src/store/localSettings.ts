@@ -8,12 +8,15 @@ import type { Horizon } from '@/constants/horizons';
  *    useUserSettings, puis miroir local pour éviter un flicker au reload.
  *  - C'est aussi cette source qu'on lit pour styler ConfigProvider AntD
  *    avant que le user soit connecté.
+ *  - lastSeenRelease : dernière note « Nouveautés » vue sur cet appareil.
  */
 interface LocalSettings {
   horizon: Horizon;
   theme: 'dark' | 'light';
+  lastSeenRelease: string | null;
   setHorizon: (h: Horizon) => void;
   setTheme: (t: 'dark' | 'light') => void;
+  setLastSeenRelease: (id: string) => void;
 }
 
 export const useLocalSettings = create<LocalSettings>()(
@@ -21,8 +24,10 @@ export const useLocalSettings = create<LocalSettings>()(
     (set) => ({
       horizon: 'medium',
       theme: 'dark',
+      lastSeenRelease: null,
       setHorizon: (horizon) => set({ horizon }),
       setTheme: (theme) => set({ theme }),
+      setLastSeenRelease: (lastSeenRelease) => set({ lastSeenRelease }),
     }),
     { name: 'investhelper.localSettings' },
   ),
