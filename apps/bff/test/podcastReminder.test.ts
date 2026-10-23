@@ -49,7 +49,8 @@ function settings(userId: string, extra: Record<string, unknown> = {}) {
   };
 }
 const sub = (userId: string, endpoint: string) => ({ user_id: userId, endpoint, p256dh: 'p', auth: 'a' });
-const sentPayloads = () => sendMock.mock.calls.map((c) => JSON.parse(c[1] as string));
+/** Notifications envoyées (format déclaratif : { web_push: 8030, notification }). */
+const sentPayloads = () => sendMock.mock.calls.map((c) => JSON.parse(c[1] as string).notification);
 
 beforeEach(async () => {
   await redis.flushall();
@@ -75,7 +76,7 @@ describe('rappel quotidien du podcast', () => {
     expect(sentPayloads()[0]).toMatchObject({
       title: 'Ton podcast du jour est prêt',
       body: expect.stringContaining('Bourse, Énergie'),
-      url: 'podcast',
+      navigate: 'http://localhost:5173/podcast',
       tag: 'podcast-daily',
     });
     expect(fake.rows('user_settings')[0].podcast_push_last_sent_on).toBe('2026-10-23');
@@ -118,7 +119,7 @@ describe('rappel quotidien du podcast', () => {
     textMock.mockRejectedValueOnce(new Error('Gemini en panne'));
     await runPodcastReminderTick(log, AT_8);
     expect(fake.rows('podcast_episodes')).toEqual([]);
-    expect(sentPayloads()).toMatchObject([{ title: "Ton brief du jour t'attend", url: 'podcast' }]);
+    expect(sentPayloads()).toMatchObject([{ title: "Ton brief du jour t'attend", navigate: 'http://localhost:5173/podcast' }]);
   });
 
   it("ne régénère pas un épisode déjà créé aujourd'hui", async () => {

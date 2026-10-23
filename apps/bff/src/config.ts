@@ -11,11 +11,28 @@ function opt(name: string): string | undefined {
   return v && v.length > 0 ? v : undefined;
 }
 
+/**
+ * Adresse publique de l'app web, BASE_PATH compris (ex.
+ * https://tondomaine.com/investhelper/), avec « / » final pour résoudre les
+ * routes relatives. Par défaut : la première origine CORS, app servie à la
+ * racine. Une URL invalide fait échouer le démarrage.
+ */
+export function resolveAppUrl(appUrl: string | undefined, corsOrigin: string): string {
+  const first = corsOrigin.split(',')[0].trim();
+  const url = new URL(appUrl ?? (first === '*' ? 'http://localhost:5173' : first));
+  if (!url.pathname.endsWith('/')) url.pathname += '/';
+  return url.href;
+}
+
+const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   host: process.env.HOST ?? '0.0.0.0',
   logLevel: process.env.LOG_LEVEL ?? 'info',
-  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  corsOrigin,
+  // Lien absolu des notifications push (format déclaratif, voir push.ts)
+  appUrl: resolveAppUrl(opt('APP_URL'), corsOrigin),
 
   redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
 

@@ -158,9 +158,38 @@ describe('service worker : notifications', () => {
     );
   });
 
+  it('affiche le format déclaratif envoyé par le BFF (Declarative Web Push)', async () => {
+    const { self, listeners } = loadServiceWorker();
+    const payload = {
+      web_push: 8030,
+      notification: {
+        title: 'Ton podcast du jour est prêt',
+        body: '4 min · Bourse',
+        navigate: 'https://app.test/investhelper/podcast',
+        tag: 'podcast-daily',
+        lang: 'fr',
+      },
+    };
+    await dispatch(listeners.push, { data: { json: () => payload } });
+    expect(self.registration.showNotification).toHaveBeenCalledWith(
+      'Ton podcast du jour est prêt',
+      expect.objectContaining({
+        body: '4 min · Bourse',
+        tag: 'podcast-daily',
+        data: { url: 'https://app.test/investhelper/podcast' },
+      }),
+    );
+  });
+
   it('affiche quand même une notification pour un payload illisible (exigence Safari)', async () => {
     const { self, listeners } = loadServiceWorker();
     await dispatch(listeners.push, { data: { json: () => JSON.parse('pas du json') } });
+    expect(self.registration.showNotification).toHaveBeenCalledWith('InvestHelper', expect.anything());
+  });
+
+  it('affiche quand même une notification pour un payload JSON null', async () => {
+    const { self, listeners } = loadServiceWorker();
+    await dispatch(listeners.push, { data: { json: () => null } });
     expect(self.registration.showNotification).toHaveBeenCalledWith('InvestHelper', expect.anything());
   });
 
