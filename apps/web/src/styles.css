@@ -13,6 +13,18 @@ html {
   text-size-adjust: 100%;
 }
 
+/* iOS 26, app installée (barre d'état translucide + viewport-fit=cover) :
+   le viewport initial est plus court que l'écran de la hauteur de la barre
+   d'état (WebKit 301108). La barre d'onglets fixée en bas s'arrête alors
+   au-dessus du bord, jusqu'au premier défilement. Un document aussi haut que
+   l'écran fait recalculer le viewport par iOS. Plafond à 100lvh : pas de
+   défilement parasite. Sans effet hors PWA ou avec une barre d'état opaque. */
+@media (display-mode: standalone) {
+  html {
+    min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
+  }
+}
+
 body {
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
