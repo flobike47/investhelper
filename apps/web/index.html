@@ -15,9 +15,12 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="InvestHelper" />
-    <!-- black-translucent : le contenu passe sous la barre d'état, les
-         marges env(safe-area-inset-*) l'en écartent. -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Pas de apple-mobile-web-app-status-bar-style : barre d'état opaque
+         (style par défaut), teintée par theme-color, et la page commence
+         dessous. Avec black-translucent, iOS 26 pose sa bande floutée
+         (Liquid Glass) sur le haut de la page. iOS ne lit ce réglage qu'à
+         l'ajout sur l'écran d'accueil : une app déjà installée le garde
+         jusqu'à sa réinstallation. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!-- Couleur de la barre d'état avant le boot de React, selon le thème de
          l'OS. Ensuite App.tsx (lib/documentTheme.ts) y écrit la couleur du

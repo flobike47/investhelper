@@ -201,10 +201,10 @@ export default function AppLayout() {
     const reserved = TAB_BAR_HEIGHT + (episode ? MINI_PLAYER_HEIGHT + 8 : 0) + 24;
     return (
       <div style={{ minHeight: '100dvh', background: token.colorBgLayout, overflowX: 'clip' }}>
-        {/* App installée (barre d'état translucide) : le contenu qui défile ne
-            doit pas passer sous l'heure et la batterie. Fond opaque, sans flou :
-            barre d'état unie, pas de fondu sous la Dynamic Island. Hauteur
-            nulle hors PWA. */}
+        {/* App installée avec l'ancienne barre d'état translucide (avant sa
+            réinstallation) : le contenu qui défile ne doit pas passer sous
+            l'heure et la batterie. Hauteur nulle sinon : barre d'état opaque
+            (index.html) ou navigateur. */}
         <div
           aria-hidden
           style={{
