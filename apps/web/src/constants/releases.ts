@@ -21,6 +21,7 @@ export const RELEASES: Release[] = [
   {
     id: '2026-10-23.2',
     fixed: ['Sur iPhone, la barre de navigation est bien collée en bas de l’écran dès l’ouverture de l’app.'],
+    improved: ['Sur téléphone, l’app installée s’utilise en mode portrait.'],
   },
   {
     id: '2026-10-23',

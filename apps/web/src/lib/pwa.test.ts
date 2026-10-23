@@ -78,6 +78,10 @@ describe('manifeste PWA', () => {
     expect(manifest.icons.some((i: { purpose: string }) => i.purpose === 'maskable')).toBe(true);
   });
 
+  it('verrouille l\'app installée en portrait', () => {
+    expect(manifest.orientation).toBe('portrait');
+  });
+
   it('référence des icônes qui existent, comme apple-touch-icon', () => {
     for (const icon of manifest.icons) expect(existsSync(join(pub, icon.src))).toBe(true);
     expect(existsSync(join(pub, 'icons', 'apple-touch-icon.png'))).toBe(true);
