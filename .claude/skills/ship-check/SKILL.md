@@ -23,7 +23,7 @@ npm run check   # typecheck (tests inclus) + lint + tests + build, comme le CI
 - **Hygiène** : pas de `console.log`, code mort, `TODO` sans contexte, `any`, `as` injustifié, `eslint-disable`, fichier de debug, duplication d'un helper existant.
 - **Tests** : la nouvelle logique et chaque bug corrigé ont un test.
 - **Portée** : le diff ne contient que ce qui a été demandé.
-- **Nouveautés** : un changement visible par l'utilisateur (ajout, correction ressentie, refonte) ⇒ une ligne dans `apps/web/src/constants/releases.ts`, sous l'entrée datée du jour de mise en prod (en créer une si besoin, en tête de liste). Phrase courte, du point de vue de l'utilisateur, sans jargon technique. Les changements invisibles (refactor, tests, infra) n'y vont pas.
+- **Nouveautés** : ne jamais ajouter de note de version dans `apps/web/src/constants/releases.ts`, même pour un changement visible (choix du mainteneur). N'y toucher que sur demande explicite.
 
 ## 3. Vérification fonctionnelle
 Pour un changement visible : lancer l'app et exercer le parcours (cas nominal + un cas d'erreur). Pour une route : `curl` réel. Dire précisément ce qui a été vérifié et ce qui ne l'a pas été.
