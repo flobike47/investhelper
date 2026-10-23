@@ -40,10 +40,18 @@ export async function enableDevicePush(): Promise<void> {
   await api.savePushSubscription(sub.toJSON());
 }
 
-/** Désabonne cet appareil (BFF d'abord : il faut encore la session). */
+/**
+ * Désabonne cet appareil (BFF d'abord : il faut encore la session). Le
+ * désabonnement local a lieu même si le BFF échoue : sinon l'ancien
+ * abonnement serait réutilisé à la réactivation. La ligne orpheline côté
+ * BFF est purgée au premier envoi (404/410).
+ */
 export async function disableDevicePush(): Promise<void> {
   const sub = await deviceSubscription();
   if (!sub) return;
-  await api.deletePushSubscription(sub.endpoint);
-  await sub.unsubscribe();
+  try {
+    await api.deletePushSubscription(sub.endpoint);
+  } finally {
+    await sub.unsubscribe();
+  }
 }

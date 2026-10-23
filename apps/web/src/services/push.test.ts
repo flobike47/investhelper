@@ -69,4 +69,12 @@ describe('disableDevicePush', () => {
     expect(api.deletePushSubscription).toHaveBeenCalledWith(subscription.endpoint);
     expect(subscription.unsubscribe).toHaveBeenCalled();
   });
+
+  it("se désabonne même si le BFF échoue (sinon l'abonnement serait réutilisé)", async () => {
+    installBrowser('granted', subscription);
+    subscription.unsubscribe.mockClear();
+    vi.mocked(api.deletePushSubscription).mockRejectedValueOnce(new Error('réseau'));
+    await expect(disableDevicePush()).rejects.toThrow('réseau');
+    expect(subscription.unsubscribe).toHaveBeenCalled();
+  });
 });

@@ -68,16 +68,31 @@ export async function activeRegistration(sw: SwContainer): Promise<ServiceWorker
   return reg.active ? reg : sw.ready;
 }
 
-/** Abonnement push de cet appareil (réutilisé s'il existe déjà). */
+function sameKey(current: ArrayBuffer, expected: Uint8Array): boolean {
+  const bytes = new Uint8Array(current);
+  return bytes.length === expected.length && bytes.every((b, i) => b === expected[i]);
+}
+
+/**
+ * Abonnement push de cet appareil, réutilisé s'il existe déjà avec la clé
+ * VAPID courante. Créé avec une autre clé (paire régénérée), il serait
+ * refusé à chaque envoi (Apple : 400 VapidPkHashMismatch) : on le remplace.
+ */
 export async function subscribeDevice(
   reg: ServiceWorkerRegistration,
   vapidPublicKey: string,
 ): Promise<PushSubscription> {
+  const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
   const existing = await reg.pushManager.getSubscription();
-  if (existing) return existing;
+  if (existing) {
+    // Clé inconnue (vieux navigateurs) : on ne peut pas comparer, on réutilise
+    const current = existing.options?.applicationServerKey;
+    if (!current || sameKey(current, applicationServerKey)) return existing;
+    await existing.unsubscribe();
+  }
   return reg.pushManager.subscribe({
     userVisibleOnly: true, // exigé par Chrome et Safari : chaque push affiche une notification
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    applicationServerKey,
   });
 }
 
