@@ -3,6 +3,7 @@ import { Alert, App as AntApp, Avatar, Button, Progress, Segmented, Skeleton, Sw
 import { BellOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useAuth } from '@/lib/auth';
+import { describePushTest } from '@/lib/push';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { usePodcastCategories } from '@/hooks/usePodcast';
@@ -75,13 +76,11 @@ function PodcastReminder() {
     );
 
   const onTest = () =>
-    push.sendTest().then(
-      ({ sent }) =>
-        sent > 0
-          ? message.success('Notification envoyée.')
-          : message.warning("Aucun appareil n'a pu être joint : réactive le rappel sur cet appareil."),
-      fail,
-    );
+    push.sendTest().then((report) => {
+      const { ok, text } = describePushTest(report);
+      if (ok) message.success(text);
+      else message.warning({ content: text, duration: 6 });
+    }, fail);
 
   const canEnable = push.support === 'supported' && push.permission !== 'denied';
 

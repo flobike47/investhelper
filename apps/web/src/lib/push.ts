@@ -80,3 +80,29 @@ export async function subscribeDevice(
     applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
   });
 }
+
+/** Bilan de `POST /user/push/test` (voir BFF `PushReport`). */
+export interface PushTestReport {
+  devices: number;
+  sent: number;
+  failures: { status: number | null; reason: string }[];
+}
+
+/** Message à afficher après une notification de test. */
+export function describePushTest(report: PushTestReport): { ok: boolean; text: string } {
+  if (report.sent > 0) return { ok: true, text: 'Notification envoyée.' };
+  if (report.devices === 0) {
+    return { ok: false, text: 'Aucun appareil enregistré : réactive le rappel sur cet appareil.' };
+  }
+  const failure = report.failures[0];
+  if (!failure || failure.status === null) {
+    return { ok: false, text: "Le serveur n'arrive pas à joindre le service de notifications. Réessaie plus tard." };
+  }
+  if (failure.status === 404 || failure.status === 410) {
+    return { ok: false, text: "L'abonnement de cet appareil a expiré : réactive le rappel." };
+  }
+  return {
+    ok: false,
+    text: `Le service de notifications a refusé l'envoi (${failure.status} ${failure.reason}). Désactive puis réactive le rappel sur cet appareil.`,
+  };
+}

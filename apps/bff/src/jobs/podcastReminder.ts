@@ -112,8 +112,8 @@ async function remindUser(row: ReminderRow, day: string, log: FastifyBaseLogger)
     }
   }
 
-  const sent = await sendToUser(userId, payload, log);
-  log.info({ userId, day, sent, ready: payload !== FALLBACK_PAYLOAD }, 'rappel podcast envoyé');
+  const { sent, failures } = await sendToUser(userId, payload, log);
+  log.info({ userId, day, sent, failed: failures.length, ready: payload !== FALLBACK_PAYLOAD }, 'rappel podcast envoyé');
 }
 
 /** Un passage du job. Exporté pour les tests (`now` injecté). */

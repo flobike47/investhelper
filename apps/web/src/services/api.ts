@@ -11,6 +11,7 @@ import type {
   EarningsEvent,
 } from '@/types/finnhub';
 import type { NewsApiResponse } from '@/types/news';
+import type { PushTestReport } from '@/lib/push';
 
 /**
  * Client unique vers le BFF. Toutes les requêtes passent par le bearer
@@ -257,7 +258,7 @@ export const api = {
     post<{ ok: true }>('/user/push/subscriptions', sub),
   deletePushSubscription: (endpoint: string) =>
     del<{ ok: true }>('/user/push/subscriptions', { endpoint }),
-  sendTestPush: () => post<{ sent: number }>('/user/push/test', {}),
+  sendTestPush: () => post<PushTestReport>('/user/push/test', {}),
 
   // -------- Share épisode (owner side) --------
   getEpisodeShare: (id: string) =>

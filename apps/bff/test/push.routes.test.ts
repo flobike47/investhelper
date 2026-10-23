@@ -135,7 +135,7 @@ describe('POST /api/user/push/test', () => {
     await subscribe('token-b', FCM);
     const res = await app.inject({ method: 'POST', url: '/api/user/push/test', headers: auth('token-a') });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ sent: 1 });
+    expect(res.json()).toEqual({ devices: 1, sent: 1, failures: [] });
     expect(sendMock).toHaveBeenCalledTimes(1);
     const [sub, payload, opts] = sendMock.mock.calls[0];
     expect(sub).toEqual({ endpoint: APPLE, keys: KEYS });
@@ -149,8 +149,39 @@ describe('POST /api/user/push/test', () => {
     await subscribe('token-a', APPLE);
     sendMock.mockRejectedValueOnce(Object.assign(new Error('Gone'), { statusCode: 410 }));
     const res = await app.inject({ method: 'POST', url: '/api/user/push/test', headers: auth('token-a') });
-    expect(res.json()).toEqual({ sent: 0 });
+    expect(res.json()).toEqual({ devices: 1, sent: 0, failures: [{ status: 410, reason: 'Gone' }] });
     expect(fake.rows('push_subscriptions')).toEqual([]);
+  });
+
+  it("remonte la raison d'un refus d'Apple (400) et garde l'abonnement", async () => {
+    await subscribe('token-a', APPLE);
+    // Forme d'un WebPushError : message générique, raison dans le corps
+    sendMock.mockRejectedValueOnce(
+      Object.assign(new Error('Received unexpected response code'), {
+        statusCode: 400,
+        body: '{"reason":"VapidPkHashMismatch"}',
+      }),
+    );
+    const res = await app.inject({ method: 'POST', url: '/api/user/push/test', headers: auth('token-a') });
+    expect(res.json()).toEqual({ devices: 1, sent: 0, failures: [{ status: 400, reason: 'VapidPkHashMismatch' }] });
+    expect(fake.rows('push_subscriptions')).toHaveLength(1);
+  });
+
+  it('signale une erreur réseau sans code HTTP', async () => {
+    await subscribe('token-a', APPLE);
+    sendMock.mockRejectedValueOnce(Object.assign(new Error('getaddrinfo ENOTFOUND web.push.apple.com'), { code: 'ENOTFOUND' }));
+    const res = await app.inject({ method: 'POST', url: '/api/user/push/test', headers: auth('token-a') });
+    expect(res.json()).toEqual({
+      devices: 1,
+      sent: 0,
+      failures: [{ status: null, reason: 'getaddrinfo ENOTFOUND web.push.apple.com' }],
+    });
+  });
+
+  it("signale l'absence d'appareil enregistré", async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/user/push/test', headers: auth('token-a') });
+    expect(res.json()).toEqual({ devices: 0, sent: 0, failures: [] });
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it("garde l'abonnement sur une erreur passagère (500)", async () => {
