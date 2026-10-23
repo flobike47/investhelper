@@ -7,6 +7,8 @@
  *    déploiement est vu au prochain lancement, l'app démarre hors ligne ;
  *  - config.js                : réseau d'abord (substitué au boot du
  *    conteneur, ne doit jamais être servi périmé quand le réseau répond) ;
+ *  - version.json             : jamais intercepté (sert à détecter une mise
+ *    en prod : une réponse en cache la masquerait) ;
  *  - assets/* (noms hachés)   : cache d'abord, immuables ;
  *  - reste (icônes, manifeste): cache, rafraîchi en arrière-plan.
  * Tout le reste (BFF, Supabase, images d'actualités) n'est jamais intercepté.
@@ -101,6 +103,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin || !url.pathname.startsWith(SCOPE)) return;
 
   const path = url.pathname.slice(SCOPE.length);
+  if (path === 'version.json') return;
 
   if (request.mode === 'navigate') {
     // Toutes les routes de la SPA retombent sur la coquille en cache

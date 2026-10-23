@@ -3,6 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderPage } from '@/hooks/test-utils';
 import { ApiError, api, type UserSettings } from '@/services/api';
 import { useLocalSettings } from '@/store/localSettings';
+import { RELEASES } from '@/constants/releases';
 import Settings from './Settings';
 
 vi.mock('@/lib/auth', () => ({
@@ -185,5 +186,21 @@ describe('Settings — rappel du podcast', () => {
     expect(await screen.findByText('Cet appareil ne reçoit pas le rappel.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Activer ici' }));
     await waitFor(() => expect(push.enable).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('Settings — nouveautés', () => {
+  beforeEach(() => {
+    vi.mocked(api.getSettings).mockResolvedValue(SERVER);
+    vi.mocked(api.getQuotas).mockResolvedValue({ quotas: [] });
+    vi.mocked(api.getCategories).mockResolvedValue({ categories: ['Bourse'] });
+    push.state = {};
+  });
+
+  it("rouvre l'historique des notes de mise à jour", async () => {
+    renderPage(<Settings />);
+    fireEvent.click(await screen.findByRole('button', { name: /Nouveautés/ }));
+    expect(await screen.findByText('Historique des nouveautés')).toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(RELEASES.length);
   });
 });

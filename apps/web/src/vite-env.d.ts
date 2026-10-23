@@ -11,3 +11,6 @@ interface ImportMeta {
 }
 
 declare module '*.css';
+
+/** Identifiant du build (vite.config.ts), identique à celui de version.json. */
+declare const __BUILD_ID__: string;

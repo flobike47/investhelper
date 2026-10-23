@@ -24,6 +24,10 @@
     @config path /config.js
     header @config Cache-Control "no-store, must-revalidate"
 
+    # Identifiant du build, lu par l'app pour détecter une mise en prod
+    @version path /version.json
+    header @version Cache-Control "no-store"
+
     # PWA : le service worker doit être revérifié à chaque visite (sinon une
     # nouvelle version de l'app peut rester bloquée derrière l'ancien SW).
     @sw path /sw.js

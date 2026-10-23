@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, App as AntApp, Avatar, Button, Progress, Segmented, Skeleton, Switch, TimePicker, theme } from 'antd';
-import { BellOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { BellOutlined, GiftOutlined, LogoutOutlined, RightOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useAuth } from '@/lib/auth';
 import { describePushTest } from '@/lib/push';
@@ -12,6 +12,9 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { HORIZON_LIST, type Horizon } from '@/constants/horizons';
 import type { PodcastDuration, QuotaInfo, UserSettings } from '@/services/api';
 import { PageHeader } from '@/components/common/PageHeader';
+import { ReleaseNotes } from '@/components/common/ReleaseNotes';
+import { RELEASES } from '@/constants/releases';
+import { formatReleaseDate } from '@/lib/releaseNotes';
 
 const QUOTA_LABELS: Record<QuotaInfo['bucket'], string> = {
   sentiment: 'Analyses de sentiment',
@@ -174,6 +177,7 @@ export default function Settings() {
   const isMobile = useIsMobile();
   const { message, modal } = AntApp.useApp();
   const { token } = theme.useToken();
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? 'Compte';
@@ -297,6 +301,24 @@ export default function Settings() {
           })
         )}
       </Group>
+
+      {RELEASES.length > 0 && (
+        <Group label="À propos">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            style={{ width: '100%', minHeight: 56, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', font: 'inherit', textAlign: 'left' }}
+          >
+            <GiftOutlined aria-hidden style={{ fontSize: 18, color: token.colorPrimary }} />
+            <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>Nouveautés</span>
+              <span style={{ fontSize: 13, color: token.colorTextSecondary }}>Version du {formatReleaseDate(RELEASES[0])}</span>
+            </span>
+            <RightOutlined aria-hidden style={{ color: token.colorTextTertiary }} />
+          </button>
+        </Group>
+      )}
+      <ReleaseNotes releases={RELEASES} open={historyOpen} onClose={() => setHistoryOpen(false)} title="Historique des nouveautés" />
 
       <Button size="large" danger icon={<LogoutOutlined />} onClick={confirmSignOut}>
         Se déconnecter

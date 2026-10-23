@@ -15,8 +15,28 @@ const replaceBasePathDev: Plugin = {
   },
 };
 
+/**
+ * Identifiant du build, figé au chargement de la config : injecté dans le
+ * code (__BUILD_ID__) ET écrit dans dist/version.json. L'app compare les
+ * deux au retour au premier plan pour proposer de recharger après une mise
+ * en prod (une PWA iOS reprise en arrière-plan garde l'ancien code).
+ */
+const BUILD_ID = process.env.BUILD_ID || new Date().toISOString();
+
+const emitVersionFile: Plugin = {
+  name: 'emit-version-file',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) });
+  },
+};
+
 export default defineConfig({
-  plugins: [react(), replaceBasePathDev],
+  plugins: [react(), replaceBasePathDev, emitVersionFile],
+
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+  },
 
   // base: './' → URLs d'assets émises relatives. Combinées avec <base href>
   // dans index.html (rempli au runtime par docker-entrypoint.sh), elles
