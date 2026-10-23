@@ -31,7 +31,7 @@ const push = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
   enable: vi.fn(async () => undefined),
   disable: vi.fn(async () => undefined),
-  sendTest: vi.fn(async () => ({ sent: 1 })),
+  sendTest: vi.fn(async () => ({ devices: 1, sent: 1, failures: [] as { status: number | null; reason: string }[] })),
   setTime: vi.fn(async () => undefined),
 }));
 vi.mock('@/hooks/usePushNotifications', () => ({
@@ -162,6 +162,14 @@ describe('Settings — rappel du podcast', () => {
     fireEvent.click(screen.getByRole('button', { name: /envoyer un test/i }));
     await waitFor(() => expect(push.sendTest).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Notification envoyée.')).toBeInTheDocument();
+  });
+
+  it("explique un envoi refusé par le service de notifications", async () => {
+    push.state = { enabled: true };
+    push.sendTest.mockResolvedValueOnce({ devices: 1, sent: 0, failures: [{ status: 400, reason: 'VapidPkHashMismatch' }] });
+    renderPage(<Settings />);
+    fireEvent.click(await screen.findByRole('button', { name: /envoyer un test/i }));
+    expect(await screen.findByText(/a refusé l'envoi \(400 VapidPkHashMismatch\)/)).toBeInTheDocument();
   });
 
   it("prévient qu'aucun épisode n'est préparé sans thème", async () => {

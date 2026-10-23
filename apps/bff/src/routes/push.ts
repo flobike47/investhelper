@@ -50,12 +50,15 @@ export async function registerPushRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  /** Notification de test vers tous les appareils de l'utilisateur. */
+  /**
+   * Notification de test vers tous les appareils de l'utilisateur. Renvoie
+   * le bilan (échecs compris) pour que l'app explique ce qui bloque.
+   */
   app.post('/user/push/test', async (req) => {
     const user = requireUser(req);
     if (!pushConfigured) throw new PushUnavailable();
     await enforceQuota(user.id, 'pushTest');
-    const sent = await sendToUser(
+    return sendToUser(
       user.id,
       {
         title: 'Notifications activées',
@@ -65,6 +68,5 @@ export async function registerPushRoutes(app: FastifyInstance) {
       },
       req.log,
     );
-    return { sent };
   });
 }

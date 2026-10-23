@@ -83,16 +83,53 @@ export interface PushPayload {
 /** Durée de vie chez le service de push : un rappel du matin périmé le soir ne sert à rien. */
 const PUSH_TTL_SEC = 4 * 60 * 60;
 
+export interface PushFailure {
+  /** Code HTTP du service de push, null pour une erreur réseau (timeout, DNS). */
+  status: number | null;
+  /** Raison donnée par le service (ex. Apple `VapidPkHashMismatch`) ou message d'erreur. */
+  reason: string;
+}
+
+export interface PushReport {
+  /** Abonnements trouvés pour l'utilisateur. */
+  devices: number;
+  sent: number;
+  failures: PushFailure[];
+}
+
+const REASON_MAX = 200;
+
+/**
+ * Raison lisible d'un échec. Apple et Mozilla répondent en JSON
+ * (`{"reason":…}`, `{"message":…}`), FCM en texte ; web-push ne met dans
+ * `message` qu'un générique « Received unexpected response code ».
+ */
+export function failureReason(err: unknown): string {
+  const { body, message } = err as { body?: unknown; message?: unknown };
+  let reason = typeof message === 'string' ? message : 'erreur inconnue';
+  if (typeof body === 'string' && body.trim()) {
+    reason = body.trim();
+    try {
+      const json = JSON.parse(reason) as { reason?: unknown; message?: unknown };
+      const detail = json.reason ?? json.message;
+      if (typeof detail === 'string' && detail) reason = detail;
+    } catch {
+      /* corps texte : gardé tel quel */
+    }
+  }
+  return reason.slice(0, REASON_MAX);
+}
+
 /**
  * Envoie `payload` à tous les appareils de `userId`. Un abonnement expiré
  * (404/410 du service de push : app désinstallée, permission retirée) est
- * supprimé. Renvoie le nombre d'envois réussis.
+ * supprimé. Renvoie le bilan : chaque échec avec la raison du service de push.
  */
 export async function sendToUser(
   userId: string,
   payload: PushPayload,
   log: FastifyBaseLogger,
-): Promise<number> {
+): Promise<PushReport> {
   if (!pushConfigured) throw new PushUnavailable();
 
   const { data, error } = await supabaseAdmin
@@ -101,8 +138,9 @@ export async function sendToUser(
     .eq('user_id', userId);
   if (error) throw error;
 
-  let sent = 0;
-  for (const sub of data ?? []) {
+  const subs = data ?? [];
+  const report: PushReport = { devices: subs.length, sent: 0, failures: [] };
+  for (const sub of subs) {
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -112,9 +150,12 @@ export async function sendToUser(
         // la précédente sur l'appareil.
         { TTL: PUSH_TTL_SEC, urgency: 'normal', timeout: 10_000 },
       );
-      sent++;
+      report.sent++;
     } catch (err) {
-      const status = (err as { statusCode?: number }).statusCode;
+      const statusCode = (err as { statusCode?: number }).statusCode;
+      const status = typeof statusCode === 'number' ? statusCode : null;
+      const reason = failureReason(err);
+      report.failures.push({ status, reason });
       if (status === 404 || status === 410) {
         const { error: delError } = await supabaseAdmin
           .from('push_subscriptions')
@@ -125,9 +166,9 @@ export async function sendToUser(
         else log.info({ userId, status }, 'push: abonnement expiré supprimé');
       } else {
         // Pas l'endpoint dans les logs : c'est un identifiant de l'appareil
-        log.warn({ userId, status, err: (err as Error).message }, 'push: envoi échoué');
+        log.warn({ userId, status, reason, host: new URL(sub.endpoint).hostname }, 'push: envoi échoué');
       }
     }
   }
-  return sent;
+  return report;
 }

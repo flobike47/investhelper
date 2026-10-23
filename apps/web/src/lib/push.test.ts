@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
-import { activeRegistration, pushSupport, subscribeDevice, urlBase64ToUint8Array } from './push';
+import { activeRegistration, describePushTest, pushSupport, subscribeDevice, urlBase64ToUint8Array } from './push';
 
 const UA = {
   iphoneSafari:
@@ -75,6 +75,26 @@ describe('subscribeDevice', () => {
     const reg = { pushManager: { getSubscription: async () => null, subscribe } } as unknown as ServiceWorkerRegistration;
     await subscribeDevice(reg, 'AQI');
     expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2]) });
+  });
+});
+
+describe('describePushTest', () => {
+  it('confirme un envoi réussi', () => {
+    expect(describePushTest({ devices: 2, sent: 1, failures: [{ status: 410, reason: 'Gone' }] })).toEqual({
+      ok: true,
+      text: 'Notification envoyée.',
+    });
+  });
+
+  it("distingue l'absence d'appareil, l'erreur réseau, l'expiration et le refus", () => {
+    expect(describePushTest({ devices: 0, sent: 0, failures: [] }).text).toMatch(/Aucun appareil enregistré/);
+    expect(describePushTest({ devices: 1, sent: 0, failures: [{ status: null, reason: 'ETIMEDOUT' }] }).text).toMatch(
+      /n'arrive pas à joindre/,
+    );
+    expect(describePushTest({ devices: 1, sent: 0, failures: [{ status: 410, reason: 'Gone' }] }).text).toMatch(/a expiré/);
+    const refused = describePushTest({ devices: 1, sent: 0, failures: [{ status: 403, reason: 'BadJwtToken' }] });
+    expect(refused).toMatchObject({ ok: false });
+    expect(refused.text).toContain('(403 BadJwtToken)');
   });
 });
 
