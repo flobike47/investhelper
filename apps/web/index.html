@@ -33,6 +33,18 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- App installée tenue en portrait : le manifeste le demande, mais iOS
+         l'ignore et n'offre pas d'API de verrouillage. En paysage sur
+         téléphone, styles.css affiche cet écran par-dessus l'app. `hidden`
+         le masque tant que la feuille de style n'est pas chargée. -->
+    <div class="rotate-hint" hidden>
+      <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+        <path d="M11 18.5h2" />
+      </svg>
+      <p>Tourne ton téléphone</p>
+      <p>InvestHelper s'utilise en mode portrait.</p>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
