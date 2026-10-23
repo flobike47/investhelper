@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireUser } from '../auth.js';
 import { supabaseAdmin } from '../providers/supabaseAdmin.js';
 import { insertEpisode } from '../episodes.js';
+import { isTimePassed, isValidTime, isValidTimeZone, localParts } from '../localTime.js';
 import { readQuota } from '../ratelimit.js';
 import {
   BadRequest,
@@ -16,9 +17,16 @@ interface SettingsBody {
   horizon?: 'short' | 'medium' | 'long';
   theme?: 'dark' | 'light';
   podcastDuration?: 'auto' | '2' | '4' | '8';
+  podcastPushEnabled?: boolean;
+  /** Heure locale d'envoi du rappel, HH:MM. */
+  podcastPushTime?: string;
+  /** Fuseau IANA du navigateur (ex. Europe/Paris). */
+  timezone?: string;
 }
 
 const PODCAST_DURATIONS = ['auto', '2', '4', '8'] as const;
+const DEFAULT_PUSH_TIME = '08:00';
+const DEFAULT_TIMEZONE = 'Europe/Paris';
 
 interface AddTickerBody { ticker: string }
 interface AddCategoryBody { name: string }
@@ -39,7 +47,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const user = requireUser(req);
     const { data, error } = await supabaseAdmin
       .from('user_settings')
-      .select('horizon, theme, podcast_duration')
+      .select('horizon, theme, podcast_duration, podcast_push_enabled, podcast_push_time, timezone')
       .eq('user_id', user.id)
       .maybeSingle();
     if (error) throw error;
@@ -47,22 +55,56 @@ export async function registerUserRoutes(app: FastifyInstance) {
       horizon: data?.horizon ?? 'medium',
       theme: data?.theme ?? 'dark',
       podcastDuration: data?.podcast_duration ?? 'auto',
+      podcastPushEnabled: data?.podcast_push_enabled ?? false,
+      podcastPushTime: data?.podcast_push_time ?? DEFAULT_PUSH_TIME,
+      timezone: data?.timezone ?? DEFAULT_TIMEZONE,
     };
   });
 
   app.put<{ Body: SettingsBody }>('/user/settings', async (req) => {
     const user = requireUser(req);
-    const horizon = req.body?.horizon
-      ? validateEnum(req.body.horizon, ['short', 'medium', 'long'] as const, 'medium')
+    const body = req.body ?? {};
+    const horizon = body.horizon
+      ? validateEnum(body.horizon, ['short', 'medium', 'long'] as const, 'medium')
       : undefined;
-    const theme = req.body?.theme
-      ? validateEnum(req.body.theme, ['dark', 'light'] as const, 'dark')
+    const theme = body.theme
+      ? validateEnum(body.theme, ['dark', 'light'] as const, 'dark')
       : undefined;
-    const podcastDuration = req.body?.podcastDuration
-      ? validateEnum(req.body.podcastDuration, PODCAST_DURATIONS, 'auto')
+    const podcastDuration = body.podcastDuration
+      ? validateEnum(body.podcastDuration, PODCAST_DURATIONS, 'auto')
       : undefined;
-    if (!horizon && !theme && !podcastDuration) {
+    if (body.podcastPushEnabled !== undefined && typeof body.podcastPushEnabled !== 'boolean') {
+      throw new BadRequest('podcastPushEnabled invalide');
+    }
+    if (body.podcastPushTime !== undefined && !isValidTime(body.podcastPushTime)) {
+      throw new BadRequest('podcastPushTime invalide (HH:MM)');
+    }
+    if (body.timezone !== undefined && !isValidTimeZone(body.timezone)) {
+      throw new BadRequest('timezone invalide');
+    }
+    const { podcastPushEnabled, podcastPushTime, timezone } = body;
+    const pushChanged =
+      podcastPushEnabled !== undefined || podcastPushTime !== undefined || timezone !== undefined;
+    if (!horizon && !theme && !podcastDuration && !pushChanged) {
       throw new BadRequest('Aucune valeur à mettre à jour');
+    }
+
+    // Activer le rappel ou déplacer son heure à un moment déjà passé
+    // aujourd'hui ne doit pas déclencher un envoi immédiat (rattrapage du
+    // job) : on marque la journée comme faite. Le premier rappel part au
+    // prochain passage de l'heure choisie.
+    let lastSentOn: string | undefined;
+    if (pushChanged) {
+      const { data: current, error: readError } = await supabaseAdmin
+        .from('user_settings')
+        .select('podcast_push_time, timezone')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (readError) throw readError;
+      const tz = timezone ?? current?.timezone ?? DEFAULT_TIMEZONE;
+      const time = podcastPushTime ?? current?.podcast_push_time ?? DEFAULT_PUSH_TIME;
+      const now = new Date();
+      if (isTimePassed(now, tz, time)) lastSentOn = localParts(now, tz).date;
     }
 
     const { error } = await supabaseAdmin
@@ -73,6 +115,10 @@ export async function registerUserRoutes(app: FastifyInstance) {
           horizon,
           theme,
           podcast_duration: podcastDuration,
+          podcast_push_enabled: podcastPushEnabled,
+          podcast_push_time: podcastPushTime,
+          timezone,
+          podcast_push_last_sent_on: lastSentOn,
         },
         { onConflict: 'user_id' },
       );

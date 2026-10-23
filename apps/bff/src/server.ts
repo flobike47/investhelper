@@ -11,6 +11,7 @@ import { registerPodcastRoutes } from './routes/podcast.js';
 import { registerFxRoutes } from './routes/fx.js';
 import { registerUserRoutes } from './routes/user.js';
 import { registerShareRoutes } from './routes/share.js';
+import { registerPushRoutes } from './routes/push.js';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
@@ -137,6 +138,7 @@ export async function buildServer() {
   await app.register(registerPodcastRoutes, { prefix: '/api' });
   await app.register(registerFxRoutes, { prefix: '/api' });
   await app.register(registerUserRoutes, { prefix: '/api' });
+  await app.register(registerPushRoutes, { prefix: '/api' });
   // Routes share : pas de prefix car elles mélangent /public/* (no auth) et
   // /api/user/.../share (auth) ; chaque path est complet dans share.ts
   await app.register(registerShareRoutes);

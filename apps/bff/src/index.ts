@@ -1,6 +1,7 @@
 import { buildServer } from './server.js';
 import { config } from './config.js';
 import { redis } from './cache.js';
+import { startPodcastReminder } from './jobs/podcastReminder.js';
 
 const app = await buildServer();
 
@@ -14,12 +15,15 @@ try {
   process.exit(1);
 }
 
+const stopPodcastReminder = startPodcastReminder(app.log);
+
 let shuttingDown = false;
 const shutdown = async (signal: string) => {
   if (shuttingDown) return;
   shuttingDown = true;
   app.log.info(`Received ${signal}, shutting down...`);
   try {
+    stopPodcastReminder();
     await app.close();
     await redis.quit();
   } catch (e) {

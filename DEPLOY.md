@@ -59,6 +59,21 @@ Portainer pourra ensuite pull les images privées automatiquement.
 | **`SUPABASE_ANON_KEY`** | **web (runtime)** | **`eyJ...` (clé anon, safe en client)** |
 | `SUPABASE_SERVICE_ROLE_KEY` | BFF | `eyJ...` (⚠️ secret) |
 | `FINNHUB_API_KEY` … `GEMINI_API_KEY` | BFF | tes clés providers |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | BFF | notifications push, optionnelles (voir ci-dessous) |
+
+**Notifications push (rappel quotidien du podcast).** Génère une paire de clés
+une seule fois, sur n'importe quelle machine :
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Renseigne `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (⚠️ secret) et `VAPID_SUBJECT`
+(`mailto:toi@exemple.com`). Sans elles, le BFF démarre normalement et logge
+« VAPID_* absentes » : le rappel est désactivé. Ne change pas de paire ensuite :
+tous les abonnements existants deviendraient invalides. La migration
+`supabase/migrations/005_podcast_push.sql` doit être appliquée **avant** de
+déployer le BFF qui l'utilise.
 
 > Les 3 lignes en gras sont injectées dans `/config.js` du conteneur web au
 > démarrage. Tu peux les modifier dans Portainer puis redéployer la stack
