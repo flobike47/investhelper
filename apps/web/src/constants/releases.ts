@@ -19,6 +19,10 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-23.3',
+    fixed: ['Sur téléphone, la fiche d’une action, les nouveautés et la transcription du podcast se ferment en les tirant vers le bas.'],
+  },
+  {
     id: '2026-10-23.2',
     fixed: ['Sur iPhone, la barre de navigation est bien collée en bas de l’écran dès l’ouverture de l’app.'],
     improved: ['Sur téléphone, l’app installée s’utilise en mode portrait.'],
