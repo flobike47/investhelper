@@ -19,6 +19,10 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-23.4',
+    fixed: ['Sur iPhone, les messages de confirmation et la barre de chargement ne passent plus sous l’heure et la batterie.'],
+  },
+  {
     id: '2026-10-23.3',
     fixed: ['Sur téléphone, la fiche d’une action, les nouveautés et la transcription du podcast se ferment en les tirant vers le bas.'],
   },
