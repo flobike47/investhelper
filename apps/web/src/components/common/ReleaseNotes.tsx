@@ -91,7 +91,11 @@ export function ReleaseNotes({ releases, open, onClose, title = 'Nouveautés' }:
         title={heading}
         footer={done}
         styles={{
-          wrapper: { maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 12px)', borderRadius: '16px 16px 0 0', overflow: 'hidden' },
+          // La hauteur max va sur `content` (colonne flex en-tête / corps / pied) :
+          // le corps se réduit et défile, le bouton reste visible. Sur `wrapper`,
+          // le `height: 100%` du contenu ne se résolvait pas (parent en
+          // hauteur auto) : corps jamais borné, donc ni défilement ni bouton.
+          content: { maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 12px)', borderRadius: '16px 16px 0 0' },
           footer: { padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))', borderTop: 'none' },
         }}
       >
