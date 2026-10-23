@@ -38,7 +38,9 @@ export default function App() {
 
   return (
     <ConfigProvider locale={frFR} theme={themeConfig}>
-      <AntApp>
+      {/* Toasts sous la barre d'état de l'app installée (heure, Dynamic
+          Island) ; l'inset vaut 0 ailleurs : 8 px, la valeur d'antd. */}
+      <AntApp message={{ top: 'calc(8px + env(safe-area-inset-top, 0px))' }}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <RouterProvider router={router} />

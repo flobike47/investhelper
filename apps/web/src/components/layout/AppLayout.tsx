@@ -19,7 +19,10 @@ const SAFE_LEFT = 'env(safe-area-inset-left, 0px)';
 const TAB_BAR_HEIGHT = 56;
 const MINI_PLAYER_HEIGHT = 60;
 
-/** Fine barre de progression en haut d'écran pendant le chargement d'une page (chunks lazy). */
+/**
+ * Fine barre de progression pendant le chargement d'une page (chunks lazy) :
+ * un trait juste sous la barre d'état (heure, batterie), pas un aplat dessous.
+ */
 function NavigationProgress() {
   const navigation = useNavigation();
   const { token } = theme.useToken();
@@ -30,10 +33,10 @@ function NavigationProgress() {
       aria-label="Chargement de la page"
       style={{
         position: 'fixed',
-        top: 0,
+        top: SAFE_TOP,
         left: 0,
         right: 0,
-        height: `calc(2px + ${SAFE_TOP})`,
+        height: 2,
         background: token.colorPrimary,
         opacity: 0.8,
         zIndex: 1100,
