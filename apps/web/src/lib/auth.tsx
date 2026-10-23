@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { configureApi } from '@/services/api';
+import { disableDevicePush } from '@/services/push';
 import { runtimeConfig } from './runtimeConfig';
 
 interface AuthCtx {
@@ -50,6 +51,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
     },
     signOut: async () => {
+      // Cet appareil ne doit plus recevoir les rappels de ce compte. Au mieux
+      // 3 s, avant la déconnexion (le BFF exige encore la session).
+      await Promise.race([
+        disableDevicePush().catch(() => undefined),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
       await supabase.auth.signOut();
     },
   };

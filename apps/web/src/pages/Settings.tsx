@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react';
-import { Alert, App as AntApp, Avatar, Button, Progress, Segmented, Skeleton, theme } from 'antd';
-import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { Alert, App as AntApp, Avatar, Button, Progress, Segmented, Skeleton, Switch, TimePicker, theme } from 'antd';
+import { BellOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { useAuth } from '@/lib/auth';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { usePodcastCategories } from '@/hooks/usePodcast';
 import { useQuotas } from '@/hooks/useQuotas';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { HORIZON_LIST, type Horizon } from '@/constants/horizons';
@@ -43,6 +46,120 @@ function Row({ title, hint, children, first }: { title: string; hint?: string; c
       </span>
       {children}
     </div>
+  );
+}
+
+/** HH:MM → dayjs du jour (sans plugin de parsing). */
+function timeValue(hhmm: string) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return dayjs().hour(h).minute(m).second(0);
+}
+
+/**
+ * Rappel quotidien du podcast. L'option est par compte, l'abonnement par
+ * appareil : on signale l'appareil qui ne recevra rien, et les cas où le
+ * navigateur ne peut pas (iPhone hors app installée, permission refusée).
+ */
+function PodcastReminder() {
+  const push = usePushNotifications();
+  const { categories } = usePodcastCategories();
+  const { message } = AntApp.useApp();
+  const { token } = theme.useToken();
+
+  const fail = (e: Error) => message.error(e.message || "Échec de l'enregistrement.");
+
+  const onToggle = (on: boolean) =>
+    (on ? push.enable() : push.disable()).then(
+      () => message.success({ content: on ? 'Rappel activé' : 'Rappel désactivé', duration: 1.2 }),
+      fail,
+    );
+
+  const onTest = () =>
+    push.sendTest().then(
+      ({ sent }) =>
+        sent > 0
+          ? message.success('Notification envoyée.')
+          : message.warning("Aucun appareil n'a pu être joint : réactive le rappel sur cet appareil."),
+      fail,
+    );
+
+  const canEnable = push.support === 'supported' && push.permission !== 'denied';
+
+  return (
+    <Row first title="Rappel du podcast" hint="Chaque jour à l'heure choisie, ton épisode est préparé et une notification te prévient.">
+      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 15 }}>
+        <span>Notification quotidienne</span>
+        <Switch
+          aria-label="Rappel quotidien du podcast"
+          checked={push.enabled}
+          loading={push.busy}
+          // Désactiver reste toujours possible, même depuis un appareil sans push
+          disabled={!push.enabled && !canEnable}
+          onChange={onToggle}
+        />
+      </label>
+
+      {push.support === 'needs-install' && (
+        <Alert
+          type="info"
+          showIcon
+          message="Sur iPhone, installe d'abord l'app"
+          description="Partager → « Sur l'écran d'accueil », puis ouvre InvestHelper depuis son icône pour activer le rappel."
+        />
+      )}
+      {push.support === 'unsupported' && (
+        <Alert type="info" showIcon message="Ce navigateur ne gère pas les notifications." />
+      )}
+      {push.support === 'supported' && push.permission === 'denied' && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Notifications bloquées"
+          description="Autorise-les pour InvestHelper dans les réglages de l'appareil (iPhone : Réglages → Notifications → InvestHelper)."
+        />
+      )}
+
+      {push.enabled && (
+        <>
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 15 }}>
+            <span>Heure d'envoi</span>
+            <TimePicker
+              aria-label="Heure d'envoi du rappel"
+              format="HH:mm"
+              minuteStep={15}
+              showNow={false}
+              needConfirm={false}
+              allowClear={false}
+              inputReadOnly
+              value={timeValue(push.time)}
+              onChange={(v) =>
+                v && push.setTime(v.format('HH:mm')).then(() => message.success({ content: 'Enregistré', duration: 1.2 }), fail)
+              }
+              style={{ width: 110 }}
+            />
+          </label>
+          {categories.length === 0 && (
+            <Alert type="warning" showIcon message="Ajoute des thèmes dans Podcast : sans thème, aucun épisode n'est préparé." />
+          )}
+          {push.support === 'supported' && push.deviceSubscribed === false && push.permission !== 'denied' && (
+            <Alert
+              type="info"
+              showIcon
+              message="Cet appareil ne reçoit pas le rappel."
+              action={
+                <Button size="small" loading={push.busy} onClick={() => onToggle(true)}>
+                  Activer ici
+                </Button>
+              }
+            />
+          )}
+          <Button icon={<BellOutlined />} onClick={onTest} style={{ alignSelf: 'flex-start' }}>
+            Envoyer un test
+          </Button>
+          <span style={{ fontSize: 12, color: token.colorTextTertiary }}>Heure de cet appareil, tous les jours.</span>
+        </>
+      )}
+    </Row>
   );
 }
 
@@ -140,6 +257,12 @@ export default function Settings() {
           </>
         )}
       </Group>
+
+      {!settings.loading && !settings.error && (
+        <Group label="Notifications">
+          <PodcastReminder />
+        </Group>
+      )}
 
       <Group label="Utilisation aujourd'hui">
         {quotas.isLoading ? (

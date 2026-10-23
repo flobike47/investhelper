@@ -11,6 +11,10 @@
  *  - reste (icônes, manifeste): cache, rafraîchi en arrière-plan.
  * Tout le reste (BFF, Supabase, images d'actualités) n'est jamais intercepté.
  *
+ * Notifications push (rappel quotidien du podcast) : chaque push affiche une
+ * notification (Safari révoque l'abonnement sinon) ; un clic ouvre la route
+ * indiquée dans le payload, toujours à l'intérieur du scope de l'app.
+ *
  * Chemins relatifs à l'emplacement du SW : l'app peut être servie sous un
  * sous-chemin (BASE_PATH).
  */
@@ -108,4 +112,51 @@ self.addEventListener('fetch', (event) => {
   } else if (path !== 'sw.js') {
     event.respondWith(staleWhileRevalidate(request));
   }
+});
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    // Payload non JSON : notification générique
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'InvestHelper', {
+      body: data.body || '',
+      icon: 'icons/icon-192.png',
+      badge: 'icons/icon-192.png',
+      tag: data.tag || 'investhelper',
+      data: { url: data.url || './' },
+    }),
+  );
+});
+
+/** URL à ouvrir au clic, bornée au scope : un payload ne peut pas envoyer ailleurs. */
+function notificationTarget(notification) {
+  const scope = self.registration.scope;
+  try {
+    const url = new URL(notification.data?.url || './', scope).href;
+    return url.startsWith(scope) ? url : scope;
+  } catch {
+    return scope;
+  }
+}
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = notificationTarget(event.notification);
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const open = windows.find((c) => c.url.startsWith(self.registration.scope));
+      if (open) {
+        // Recharge sur la route : la liste d'épisodes est à jour
+        await open.focus();
+        if (open.url !== target) await open.navigate(target).catch(() => undefined);
+        return;
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
 });
