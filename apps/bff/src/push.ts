@@ -80,6 +80,27 @@ export interface PushPayload {
   tag: string;
 }
 
+/**
+ * Corps chiffré envoyé au service de push, au format Declarative Web Push
+ * (Safari 18.4+) : iOS affiche la notification lui-même. Avec un payload
+ * libre, iOS livrait bien le push au service worker mais signalait « Push
+ * event handling completed without showing any notification » malgré
+ * showNotification, puis révoquait l'abonnement. Chrome et Firefox livrent
+ * ce même JSON au service worker (public/sw.js), qui le lit.
+ */
+export function pushBody(payload: PushPayload): string {
+  return JSON.stringify({
+    web_push: 8030,
+    notification: {
+      title: payload.title,
+      body: payload.body,
+      navigate: new URL(payload.url, config.appUrl).href,
+      tag: payload.tag,
+      lang: 'fr',
+    },
+  });
+}
+
 /** Durée de vie chez le service de push : un rappel du matin périmé le soir ne sert à rien. */
 const PUSH_TTL_SEC = 4 * 60 * 60;
 
@@ -144,7 +165,7 @@ export async function sendToUser(
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        JSON.stringify(payload),
+        pushBody(payload),
         // Pas d'en-tête Topic : Apple refuse nos tags (400 BadWebPushTopic) alors
         // que FCM les accepte. Le `tag` de la notification suffit à remplacer
         // la précédente sur l'appareil.
