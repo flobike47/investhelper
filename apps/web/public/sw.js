@@ -121,13 +121,18 @@ self.addEventListener('push', (event) => {
   } catch {
     // Payload non JSON : notification générique
   }
+  // Format Declarative Web Push du BFF ({ web_push: 8030, notification }) :
+  // Safari l'affiche seul, Chrome et Firefox le livrent ici. Format plat
+  // accepté aussi (anciens envois).
+  // (`|| {}` : un payload JSON `null` ne doit pas empêcher l'affichage)
+  const n = (data && data.web_push === 8030 && data.notification) || data || {};
   event.waitUntil(
-    self.registration.showNotification(data.title || 'InvestHelper', {
-      body: data.body || '',
+    self.registration.showNotification(n.title || 'InvestHelper', {
+      body: n.body || '',
       icon: 'icons/icon-192.png',
       badge: 'icons/icon-192.png',
-      tag: data.tag || 'investhelper',
-      data: { url: data.url || './' },
+      tag: n.tag || 'investhelper',
+      data: { url: n.navigate || n.url || './' },
     }),
   );
 });

@@ -54,6 +54,7 @@ Portainer pourra ensuite pull les images privées automatiquement.
 | `BFF_IMAGE` | compose | `registry.example.com/investhelper-bff:latest` |
 | `WEB_IMAGE` | compose | `registry.example.com/investhelper-web:latest` |
 | `CORS_ORIGIN` | BFF | `https://tondomaine.com` |
+| `APP_URL` | BFF | optionnelle, `https://tondomaine.com/investhelper/` : lien des notifications push. Par défaut la première origine de `CORS_ORIGIN` ; à renseigner si l'app est servie sous un `BASE_PATH` |
 | **`BFF_URL`** | **web (runtime)** | **`https://api.tondomaine.com`** |
 | `SUPABASE_URL` | BFF + web | `https://xxx.supabase.co` |
 | **`SUPABASE_ANON_KEY`** | **web (runtime)** | **`eyJ...` (clé anon, safe en client)** |
