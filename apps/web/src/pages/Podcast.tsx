@@ -31,6 +31,7 @@ import type { PodcastDuration, PodcastEpisodeDto } from '@/services/api';
 import type { PlayerSource } from '@/lib/player';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ShareEpisode } from '@/components/podcast/ShareEpisode';
+import { BottomSheet } from '@/components/common/BottomSheet';
 
 const SUGGESTIONS = [
   'Macro / banques centrales',
@@ -249,6 +250,25 @@ export default function Podcast() {
 
   const suggestions = SUGGESTIONS.filter((s) => !categories.some((c) => c.toLowerCase() === s.toLowerCase()));
 
+  // Transcription : panneau du bas sur mobile, à droite sur PC.
+  const closeTranscript = () => setTranscriptOf(null);
+  const transcriptTitle = transcriptOf ? episodeLabels(transcriptOf).title : '';
+  const transcript = transcriptOf && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.6 }}>{transcriptOf.script}</p>
+      <section aria-labelledby="sources-title" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <h3 id="sources-title" style={{ margin: 0, fontSize: 16 }}>
+          Sources ({transcriptOf.sources.length})
+        </h3>
+        {transcriptOf.sources.map((s) => (
+          <a key={s} href={s} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', fontSize: 13 }}>
+            {s}
+          </a>
+        ))}
+      </section>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 760 }}>
       <PageHeader eyebrow="Brief audio des actualités" title="Podcast" />
@@ -429,31 +449,15 @@ export default function Podcast() {
         )}
       </section>
 
-      <Drawer
-        open={transcriptOf !== null}
-        onClose={() => setTranscriptOf(null)}
-        placement={isMobile ? 'bottom' : 'right'}
-        height={isMobile ? 'calc(100dvh - env(safe-area-inset-top, 0px) - 12px)' : undefined}
-        width={isMobile ? undefined : 520}
-        title={transcriptOf ? episodeLabels(transcriptOf).title : ''}
-        styles={{ body: { paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' } }}
-      >
-        {transcriptOf && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.6 }}>{transcriptOf.script}</p>
-            <section aria-labelledby="sources-title" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <h3 id="sources-title" style={{ margin: 0, fontSize: 16 }}>
-                Sources ({transcriptOf.sources.length})
-              </h3>
-              {transcriptOf.sources.map((s) => (
-                <a key={s} href={s} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', fontSize: 13 }}>
-                  {s}
-                </a>
-              ))}
-            </section>
-          </div>
-        )}
-      </Drawer>
+      {isMobile ? (
+        <BottomSheet open={transcriptOf !== null} onClose={closeTranscript} title={transcriptTitle}>
+          {transcript}
+        </BottomSheet>
+      ) : (
+        <Drawer open={transcriptOf !== null} onClose={closeTranscript} placement="right" width={520} title={transcriptTitle}>
+          {transcript}
+        </Drawer>
+      )}
     </div>
   );
 }

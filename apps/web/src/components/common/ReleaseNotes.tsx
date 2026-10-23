@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { Button, Drawer, Modal, theme } from 'antd';
+import { Button, Modal, theme } from 'antd';
 import { BugOutlined, PlusCircleOutlined, ToolOutlined } from '@ant-design/icons';
 import type { Release } from '@/constants/releases';
 import { formatReleaseDate } from '@/lib/releaseNotes';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useReleaseNotes } from '@/hooks/useReleaseNotes';
+import { BottomSheet } from './BottomSheet';
 
 const SECTIONS: Array<{ key: 'added' | 'fixed' | 'improved'; label: string; icon: ReactNode }> = [
   { key: 'added', label: 'Ajouté', icon: <PlusCircleOutlined /> },
@@ -83,24 +84,9 @@ export function ReleaseNotes({ releases, open, onClose, title = 'Nouveautés' }:
 
   if (isMobile) {
     return (
-      <Drawer
-        open={open}
-        onClose={onClose}
-        placement="bottom"
-        height="auto"
-        title={heading}
-        footer={done}
-        styles={{
-          // La hauteur max va sur `content` (colonne flex en-tête / corps / pied) :
-          // le corps se réduit et défile, le bouton reste visible. Sur `wrapper`,
-          // le `height: 100%` du contenu ne se résolvait pas (parent en
-          // hauteur auto) : corps jamais borné, donc ni défilement ni bouton.
-          content: { maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 12px)', borderRadius: '16px 16px 0 0' },
-          footer: { padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))', borderTop: 'none' },
-        }}
-      >
+      <BottomSheet open={open} onClose={onClose} size="auto" title={heading} footer={done}>
         {body}
-      </Drawer>
+      </BottomSheet>
     );
   }
 
