@@ -105,8 +105,8 @@ async function put<T, B = unknown>(path: string, body: B): Promise<T> {
   return res.data;
 }
 
-async function del<T>(path: string): Promise<T> {
-  const res = await getClient().delete<T>(`/api${path}`);
+async function del<T>(path: string, body?: unknown): Promise<T> {
+  const res = await getClient().delete<T>(`/api${path}`, { data: body });
   return res.data;
 }
 
@@ -138,6 +138,12 @@ export interface UserSettings {
   horizon: 'short' | 'medium' | 'long';
   theme: 'dark' | 'light';
   podcastDuration: PodcastDuration;
+  /** Rappel quotidien : l'épisode est préparé puis une notification part. */
+  podcastPushEnabled: boolean;
+  /** Heure locale d'envoi, HH:MM. */
+  podcastPushTime: string;
+  /** Fuseau IANA de l'appareil qui a réglé le rappel. */
+  timezone: string;
 }
 
 export interface PodcastEpisodeDto {
@@ -243,6 +249,15 @@ export const api = {
     del<{ ok: true }>(`/user/podcast/episodes/${encodeURIComponent(id)}`),
 
   getQuotas: () => get<{ quotas: QuotaInfo[] }>('/user/quotas'),
+
+  // -------- Notifications push --------
+  pushPublicKey: () => get<{ publicKey: string }>('/push/public-key'),
+  /** `sub` = `PushSubscription.toJSON()` de l'appareil. */
+  savePushSubscription: (sub: PushSubscriptionJSON) =>
+    post<{ ok: true }>('/user/push/subscriptions', sub),
+  deletePushSubscription: (endpoint: string) =>
+    del<{ ok: true }>('/user/push/subscriptions', { endpoint }),
+  sendTestPush: () => post<{ sent: number }>('/user/push/test', {}),
 
   // -------- Share épisode (owner side) --------
   getEpisodeShare: (id: string) =>

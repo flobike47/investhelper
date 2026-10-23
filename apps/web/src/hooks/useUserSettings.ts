@@ -7,6 +7,15 @@ import type { Horizon } from '@/constants/horizons';
 
 const KEY = ['user-settings'];
 
+const DEFAULTS: UserSettings = {
+  horizon: 'medium',
+  theme: 'dark',
+  podcastDuration: 'auto',
+  podcastPushEnabled: false,
+  podcastPushTime: '08:00',
+  timezone: 'Europe/Paris',
+};
+
 /**
  * Source de vérité = serveur. Le store local n'est utilisé que pour
  * pré-rendre le thème AntD avant que le serveur réponde (anti-flicker).
@@ -35,11 +44,9 @@ export function useUserSettings() {
   const mutate = useMutation({
     mutationFn: (patch: Partial<UserSettings>) => api.saveSettings(patch),
     onSuccess: (_d, patch) => {
-      qc.setQueryData(KEY, (prev: UserSettings | undefined) => ({
-        horizon: patch.horizon ?? prev?.horizon ?? 'medium',
-        theme: patch.theme ?? prev?.theme ?? 'dark',
-        podcastDuration: patch.podcastDuration ?? prev?.podcastDuration ?? 'auto',
-      }));
+      // Seuls les champs envoyés remplacent les valeurs connues
+      const sent = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+      qc.setQueryData(KEY, (prev: UserSettings | undefined) => ({ ...DEFAULTS, ...prev, ...sent }));
       const store = useLocalSettings.getState();
       if (patch.horizon) store.setHorizon(patch.horizon);
       if (patch.theme) store.setTheme(patch.theme);
@@ -49,7 +56,9 @@ export function useUserSettings() {
   return {
     horizon: query.data?.horizon ?? local.horizon,
     theme: query.data?.theme ?? local.theme,
-    podcastDuration: query.data?.podcastDuration ?? 'auto',
+    podcastDuration: query.data?.podcastDuration ?? DEFAULTS.podcastDuration,
+    podcastPushEnabled: query.data?.podcastPushEnabled ?? DEFAULTS.podcastPushEnabled,
+    podcastPushTime: query.data?.podcastPushTime ?? DEFAULTS.podcastPushTime,
     loading: query.isLoading,
     /** Erreur de chargement des réglages serveur (ApiError). */
     error: query.error,
