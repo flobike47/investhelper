@@ -32,7 +32,8 @@ describe("Nouveautés à l'ouverture", () => {
     renderWithProviders(<ReleaseNotesOnLaunch />);
     fireEvent.click(await screen.findByRole('button', { name: "C'est noté" }));
     expect(useLocalSettings.getState().lastSeenRelease).toBe(LATEST.id);
-    await waitFor(() => expect(screen.queryByRole('button', { name: "C'est noté" })).not.toBeInTheDocument());
+    // Le tiroir fermé reste monté, masqué par le CSS d'antd (absent des tests, cf. test-utils)
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull());
   });
 
   it("ne réaffiche pas une note déjà vue", () => {
