@@ -108,6 +108,34 @@ button,
   }
 }
 
+/* ---------- Barre d'état iOS ---------- */
+
+/* App installée, iOS 26+ : la barre d'état est opaque (index.html) et ignore
+   theme-color. iOS la peint de la couleur de l'élément fixe situé 4 px sous
+   le bord haut de la page, s'il couvre au moins 90 % de la largeur et fait
+   plus de 10 px de haut ; à défaut, en noir. Cette bande sert de source de
+   couleur : fond = celui de <body> (thème choisi, lib/documentTheme.ts),
+   rien de peint (background-clip: text, sans texte), aucun tap capté. */
+.ios-status-bar-band {
+  display: none;
+}
+
+@media (display-mode: standalone) {
+  @supports (-webkit-touch-callout: none) {
+    .ios-status-bar-band {
+      display: block;
+      position: fixed;
+      inset: 0 0 auto;
+      height: 12px;
+      background-color: inherit;
+      -webkit-background-clip: text;
+      background-clip: text;
+      z-index: 2147483647;
+      pointer-events: none;
+    }
+  }
+}
+
 /* ---------- Orientation ---------- */
 
 /* App installée sur téléphone tenue en paysage : écran « Tourne ton

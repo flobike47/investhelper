@@ -22,9 +22,10 @@
          l'ajout sur l'écran d'accueil : une app déjà installée le garde
          jusqu'à sa réinstallation. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- Couleur de la barre d'état avant le boot de React, selon le thème de
-         l'OS. Ensuite App.tsx (lib/documentTheme.ts) y écrit la couleur du
-         thème choisi dans l'app. Valeurs = DOCUMENT_COLORS de src/theme.ts.
+    <!-- Couleur du navigateur (Android, Safari) avant le boot de React, selon
+         le thème de l'OS. Ensuite App.tsx (lib/documentTheme.ts) y écrit la
+         couleur du thème choisi dans l'app. Valeurs = DOCUMENT_COLORS de
+         src/theme.ts. L'app installée sur iOS l'ignore (.ios-status-bar-band).
          Pas de maximum-scale / user-scalable=no : le zoom reste possible. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#13161d" />
@@ -35,6 +36,10 @@
     <script src="config.js"></script>
   </head>
   <body>
+    <!-- Source de couleur de la barre d'état iOS (app installée), voir
+         .ios-status-bar-band dans styles.css. Dès le HTML initial : iOS
+         échantillonne dès les premières images. -->
+    <div class="ios-status-bar-band" aria-hidden="true"></div>
     <div id="root"></div>
     <!-- App installée tenue en portrait : le manifeste le demande, mais iOS
          l'ignore et n'offre pas d'API de verrouillage. En paysage sur
