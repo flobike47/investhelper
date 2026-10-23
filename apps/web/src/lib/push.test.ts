@@ -70,6 +70,29 @@ describe('subscribeDevice', () => {
     expect(subscribe).not.toHaveBeenCalled();
   });
 
+  it("réutilise l'abonnement créé avec la même clé VAPID", async () => {
+    const existing = { options: { applicationServerKey: new Uint8Array([1, 2]).buffer }, unsubscribe: vi.fn() };
+    const subscribe = vi.fn();
+    const reg = { pushManager: { getSubscription: async () => existing, subscribe } } as unknown as ServiceWorkerRegistration;
+    await expect(subscribeDevice(reg, 'AQI')).resolves.toBe(existing);
+    expect(existing.unsubscribe).not.toHaveBeenCalled();
+    expect(subscribe).not.toHaveBeenCalled();
+  });
+
+  it("remplace l'abonnement créé avec une autre clé VAPID (Apple : VapidPkHashMismatch)", async () => {
+    const calls: string[] = [];
+    const existing = {
+      options: { applicationServerKey: new Uint8Array([9, 9]).buffer },
+      unsubscribe: vi.fn(async () => calls.push('unsubscribe')),
+    };
+    const fresh = {};
+    const subscribe = vi.fn(async () => (calls.push('subscribe'), fresh));
+    const reg = { pushManager: { getSubscription: async () => existing, subscribe } } as unknown as ServiceWorkerRegistration;
+    await expect(subscribeDevice(reg, 'AQI')).resolves.toBe(fresh);
+    expect(calls).toEqual(['unsubscribe', 'subscribe']);
+    expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2]) });
+  });
+
   it('crée un abonnement visible avec la clé VAPID', async () => {
     const subscribe = vi.fn(async () => ({}));
     const reg = { pushManager: { getSubscription: async () => null, subscribe } } as unknown as ServiceWorkerRegistration;
