@@ -107,7 +107,10 @@ export async function sendToUser(
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         JSON.stringify(payload),
-        { TTL: PUSH_TTL_SEC, urgency: 'normal', topic: payload.tag, timeout: 10_000 },
+        // Pas d'en-tête Topic : Apple refuse nos tags (400 BadWebPushTopic) alors
+        // que FCM les accepte. Le `tag` de la notification suffit à remplacer
+        // la précédente sur l'appareil.
+        { TTL: PUSH_TTL_SEC, urgency: 'normal', timeout: 10_000 },
       );
       sent++;
     } catch (err) {

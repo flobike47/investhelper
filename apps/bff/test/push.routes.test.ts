@@ -140,7 +140,9 @@ describe('POST /api/user/push/test', () => {
     const [sub, payload, opts] = sendMock.mock.calls[0];
     expect(sub).toEqual({ endpoint: APPLE, keys: KEYS });
     expect(JSON.parse(payload as string)).toMatchObject({ url: 'podcast', tag: 'push-test' });
-    expect(opts).toMatchObject({ TTL: 4 * 60 * 60, topic: 'push-test' });
+    expect(opts).toMatchObject({ TTL: 4 * 60 * 60, urgency: 'normal' });
+    // Apple rejette l'en-tête Topic (400 BadWebPushTopic) : jamais envoyé
+    expect(opts).not.toHaveProperty('topic');
   });
 
   it('supprime un abonnement expiré (410)', async () => {
