@@ -19,6 +19,10 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-23.6',
+    fixed: ['Sur iPhone, plus aucun flou sous l’heure et la batterie. Pour en profiter : supprime l’app de l’écran d’accueil, puis ajoute-la à nouveau.'],
+  },
+  {
     id: '2026-10-23.5',
     improved: ['Sur iPhone, la zone de l’heure et de la batterie est unie, sans effet flou.'],
   },

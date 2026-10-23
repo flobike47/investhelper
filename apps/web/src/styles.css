@@ -18,7 +18,8 @@ html {
    d'état (WebKit 301108). La barre d'onglets fixée en bas s'arrête alors
    au-dessus du bord, jusqu'au premier défilement. Un document aussi haut que
    l'écran fait recalculer le viewport par iOS. Plafond à 100lvh : pas de
-   défilement parasite. Sans effet hors PWA ou avec une barre d'état opaque. */
+   défilement parasite. Sans effet hors PWA ou avec une barre d'état opaque
+   (index.html depuis le 2026-10-23) ; gardé pour les apps installées avant. */
 @media (display-mode: standalone) {
   html {
     min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
