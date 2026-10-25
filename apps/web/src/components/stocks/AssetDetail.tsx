@@ -5,7 +5,6 @@ import dayjs from 'dayjs';
 import { useCompanyNews, useProfile } from '@/hooks/useStockData';
 import { useSignal } from '@/hooks/useSignals';
 import { useTickerSentiment } from '@/hooks/useNewsAnalysis';
-import { useNextEarnings } from '@/hooks/useEarnings';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { HORIZONS } from '@/constants/horizons';
@@ -55,7 +54,6 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
   const { data: news } = useCompanyNews(symbol, 14);
   const profile = useProfile(symbol);
   const sentiment = useTickerSentiment(symbol);
-  const earnings = useNextEarnings(symbol);
   const watchlist = useWatchlist();
 
   const name = findInUniverse(symbol)?.name ?? profile.data?.name;
@@ -64,6 +62,7 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
   const analog = d?.analog ?? null;
   const levels = d?.levels;
   const playbook = d?.playbook;
+  const earnings = d?.earnings ?? null;
   const fatalError =
     (detail.error as Error | null) ??
     (d && d.price.native === null && d.score === null && d.errors.length > 0 ? new Error(d.errors.join(' · ')) : null);
@@ -202,6 +201,15 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
           </SectionTitle>
           <span style={{ fontSize: 13, color: token.colorTextSecondary }}>Détention typique : {playbook?.holdingPeriod ?? '—'}</span>
         </div>
+        {earnings?.withinWindow && (
+          <Alert
+            type="warning"
+            showIcon
+            message={`Résultats ${
+              earnings.daysUntil === 0 ? "aujourd'hui" : `le ${dayjs(earnings.date).format('D MMM')} (dans ${earnings.daysUntil} j)`
+            } : volatilité accrue possible pendant la fenêtre du plan.`}
+          />
+        )}
         {d?.signal === 'sell' && (
           <p style={{ margin: 0, fontSize: 14, color: token.colorTextSecondary }}>
             Pas de zone d'entrée sur un signal baissier.
@@ -284,11 +292,11 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
           <div style={{ padding: '14px 16px', borderTop: divider, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
             <span style={{ fontSize: 15, fontWeight: 600 }}>Prochains résultats</span>
             <span className="tabular-nums" style={{ fontSize: 15, color: token.colorTextSecondary, textAlign: 'right' }}>
-              {earnings.isLoading
+              {detail.isLoading
                 ? '…'
-                : earnings.data
-                  ? `${dayjs(earnings.data.date).format('D MMM')} · ${
-                      earnings.data.hour === 'bmo' ? 'avant ouverture' : earnings.data.hour === 'amc' ? 'après clôture' : 'horaire non précisé'
+                : earnings
+                  ? `${dayjs(earnings.date).format('D MMM')} · ${
+                      earnings.hour === 'bmo' ? 'avant ouverture' : earnings.hour === 'amc' ? 'après clôture' : 'horaire non précisé'
                     }`
                   : 'aucune date annoncée'}
             </span>

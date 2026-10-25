@@ -2,11 +2,13 @@ import type { FastifyBaseLogger } from 'fastify';
 import {
   cachedCandles,
   cachedFxRates,
+  cachedNextEarnings,
   cachedPriceTarget,
   cachedQuote,
   cachedRecommendations,
 } from './marketCache.js';
 import { convertToEur } from './finance/currency.js';
+import { earningsInWindow, type EarningsWindow } from './finance/earnings.js';
 import { HORIZONS, analogBarsFor, type Horizon } from './finance/horizons.js';
 import { findRsiAnalog, pickBucketFromRsi, type HistoricalAnalog } from './finance/historicalAnalog.js';
 import { buildPlaybook, type Playbook } from './finance/playbook.js';
@@ -67,6 +69,8 @@ export interface SignalDetail {
   };
   analog: HistoricalAnalog | null;
   playbook: Playbook;
+  /** Prochaine publication de résultats, située par rapport à la fenêtre de l'horizon. */
+  earnings: EarningsWindow | null;
   /** Données partiellement indisponibles (cours ou historique), en clair. */
   errors: string[];
 }
@@ -88,12 +92,13 @@ const message = (reason: unknown) => (reason instanceof Error ? reason.message :
 
 export async function computeSignal(symbol: string, horizon: Horizon, log?: FastifyBaseLogger): Promise<SignalDetail> {
   const cfg = HORIZONS[horizon];
-  const [quoteRes, candleRes, recoRes, targetRes, fxRes] = await Promise.allSettled([
+  const [quoteRes, candleRes, recoRes, targetRes, fxRes, earningsRes] = await Promise.allSettled([
     cachedQuote(symbol, log),
     cachedCandles(symbol, cfg.candleResolution, cfg.lookbackDays, log),
     cachedRecommendations(symbol),
     cachedPriceTarget(symbol),
     cachedFxRates(),
+    cachedNextEarnings(symbol),
   ]);
   // Ni cours ni historique : rien à montrer, on remonte l'erreur de l'historique.
   if (quoteRes.status === 'rejected' && candleRes.status === 'rejected') throw candleRes.reason;
@@ -103,6 +108,7 @@ export async function computeSignal(symbol: string, horizon: Horizon, log?: Fast
   const reco = recoRes.status === 'fulfilled' ? recoRes.value : null;
   const target = targetRes.status === 'fulfilled' ? targetRes.value : null;
   const rates = fxRes.status === 'fulfilled' ? fxRes.value : null;
+  const nextEarnings = earningsRes.status === 'fulfilled' ? earningsRes.value : null;
 
   const currency = quote?.currency ?? candle?.currency ?? 'USD';
   const eur = (v: number | null) => convertToEur(v, currency, rates);
@@ -173,6 +179,7 @@ export async function computeSignal(symbol: string, horizon: Horizon, log?: Fast
     },
     analog,
     playbook,
+    earnings: earningsInWindow(nextEarnings, cfg, new Date()),
     errors,
   };
 }
