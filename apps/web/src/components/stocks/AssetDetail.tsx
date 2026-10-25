@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { App as AntApp, Alert, Button, Collapse, Skeleton, Tag, theme } from 'antd';
 import { CloseOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { Link } from 'react-router-dom';
 import { useCompanyNews, useProfile } from '@/hooks/useStockData';
 import { useSignal } from '@/hooks/useSignals';
 import { useTickerSentiment } from '@/hooks/useNewsAnalysis';
@@ -9,7 +10,7 @@ import { useWatchlist } from '@/hooks/useWatchlist';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { HORIZONS } from '@/constants/horizons';
 import { findInUniverse } from '@/constants/universe';
-import { formatMoney, formatNative } from '@/lib/currency';
+import { formatEur, formatMoney, formatNative } from '@/lib/currency';
 import { formatSignedPct } from '@/lib/format';
 import { describeError } from '@/lib/watchlistSummary';
 import { SignalTag } from '@/components/common/SignalTag';
@@ -19,6 +20,7 @@ import { SENTIMENT_COLORS, SENTIMENT_LABELS } from './sentiment';
 
 const ratioFormatter = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const formatRatio = (r: number) => ratioFormatter.format(r);
+const formatPct = (v: number) => `${String(v).replace('.', ',')}\u202f%`;
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em' }}>{children}</h3>;
@@ -233,6 +235,21 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
               </Tag>
             )}
           </div>
+        )}
+        {d && levels?.stopApplies && (d.signal === 'buy' || d.signal === 'hold') && (
+          <p className="tabular-nums" style={{ margin: 0, fontSize: 14, lineHeight: 1.4, color: token.colorTextSecondary }}>
+            {!d.capitalSet ? (
+              <>
+                Renseigner le capital dans les <Link to="/settings">réglages</Link> pour obtenir la taille de position.
+              </>
+            ) : d.sizing === null ? null : d.sizing.shares === 0 ? (
+              `Un seul titre dépasserait le risque de ${formatPct(d.riskPerTradePct)} du capital.`
+            ) : (
+              `Pour risquer ${formatPct(d.riskPerTradePct)} du capital : ${d.sizing.shares} titre${d.sizing.shares > 1 ? 's' : ''} · ${formatEur(
+                d.sizing.amountEur,
+              )} · perte max ${formatEur(d.sizing.maxLossEur)} si le stop est touché${d.sizing.cappedByCapital ? ' (limité par le capital)' : ''}.`
+            )}
+          </p>
         )}
         {playbook && (
           <Collapse

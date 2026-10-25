@@ -23,7 +23,10 @@ export const RELEASES: Release[] = [
     fixed: [
       'Les actions européennes et internationales (Paris, Francfort, Zurich, Londres…) affichent enfin leur cours et leur graphique.',
     ],
-    added: ['La fiche prévient quand des résultats tombent pendant la durée de détention du plan.'],
+    added: [
+      'La fiche prévient quand des résultats tombent pendant la durée de détention du plan.',
+      'Avec ton capital renseigné dans les réglages, la fiche calcule combien de titres acheter et la perte maximale au stop.',
+    ],
     improved: ['La watchlist et les idées se chargent plus vite.'],
   },
   {

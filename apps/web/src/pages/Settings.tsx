@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, App as AntApp, Avatar, Button, Progress, Segmented, Skeleton, Switch, TimePicker, theme } from 'antd';
+import { Alert, App as AntApp, Avatar, Button, InputNumber, Progress, Segmented, Skeleton, Switch, TimePicker, theme } from 'antd';
 import { BellOutlined, GiftOutlined, LogoutOutlined, RightOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useAuth } from '@/lib/auth';
@@ -49,6 +49,56 @@ function Row({ title, hint, children, first }: { title: string; hint?: string; c
         {hint && <span style={{ fontSize: 13, color: token.colorTextSecondary, lineHeight: 1.35 }}>{hint}</span>}
       </span>
       {children}
+    </div>
+  );
+}
+
+const RISK_OPTIONS = [0.5, 1, 2];
+
+/**
+ * Capital et risque par position : la fiche en déduit le nombre de titres.
+ * Le capital s'enregistre à la sortie du champ (pas à chaque frappe).
+ */
+function PositionSizing({
+  capitalEur,
+  riskPerTradePct,
+  onSave,
+}: {
+  capitalEur: number | null;
+  riskPerTradePct: number;
+  onSave: (patch: Partial<UserSettings>) => void;
+}) {
+  const [draft, setDraft] = useState<number | null>(capitalEur);
+  const commit = () => {
+    if (draft !== capitalEur) onSave({ capitalEur: draft });
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <InputNumber<number>
+        aria-label="Capital en euros"
+        placeholder="Capital"
+        suffix="€"
+        min={1}
+        max={1_000_000_000}
+        step={1000}
+        precision={0}
+        inputMode="numeric"
+        value={draft}
+        onChange={setDraft}
+        onBlur={commit}
+        onPressEnter={commit}
+        style={{ width: '100%' }}
+      />
+      <Segmented<number>
+        block
+        name="riskPerTradePct"
+        aria-label="Risque par position"
+        value={riskPerTradePct}
+        onChange={(v) => onSave({ riskPerTradePct: v })}
+        options={(RISK_OPTIONS.includes(riskPerTradePct) ? RISK_OPTIONS : [...RISK_OPTIONS, riskPerTradePct].sort((a, b) => a - b)).map(
+          (v) => ({ label: `${String(v).replace('.', ',')} %`, value: v }),
+        )}
+      />
     </div>
   );
 }
@@ -242,6 +292,12 @@ export default function Settings() {
                   { label: 'Clair', value: 'light' },
                 ]}
               />
+            </Row>
+            <Row
+              title="Taille de position"
+              hint="Capital consacré aux positions et part risquée si le stop est touché : la fiche en déduit le nombre de titres."
+            >
+              <PositionSizing capitalEur={settings.capitalEur} riskPerTradePct={settings.riskPerTradePct} onSave={save} />
             </Row>
             <Row title="Durée du podcast" hint="Auto : adaptée au volume d'actualités du jour.">
               <Segmented<PodcastDuration>
