@@ -16,6 +16,7 @@ import { describeError } from '@/lib/watchlistSummary';
 import { SignalTag } from '@/components/common/SignalTag';
 import { ChangeIndicator } from './ChangeIndicator';
 import { PriceSparkline } from './PriceSparkline';
+import { AssetAlerts } from './AssetAlerts';
 import { SENTIMENT_COLORS, SENTIMENT_LABELS } from './sentiment';
 
 const ratioFormatter = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -275,6 +276,21 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
           />
         )}
       </section>
+
+      {d && (
+        <section aria-labelledby="asset-alerts" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <SectionTitle>
+            <span id="asset-alerts">Alertes</span>
+          </SectionTitle>
+          <AssetAlerts
+            symbol={symbol}
+            currency={d.currency}
+            price={d.price.native}
+            stop={d.levels.stop.native}
+            target={d.levels.target.native}
+          />
+        </section>
+      )}
 
       <section aria-labelledby="asset-context" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <SectionTitle>

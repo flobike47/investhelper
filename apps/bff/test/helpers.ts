@@ -14,6 +14,8 @@ export const TOKENS: Record<string, string> = { 'token-a': USER_A, 'token-b': US
 
 export function createSupabaseFake() {
   let tables: Tables = {};
+  /** Erreur Postgres à renvoyer à la prochaine écriture sur une table (simule un trigger, une contrainte). */
+  const nextError: Record<string, { code: string; message: string; details?: string } | undefined> = {};
 
   function from(table: string) {
     const filters: Array<(r: Row) => boolean> = [];
@@ -41,6 +43,11 @@ export function createSupabaseFake() {
 
     async function exec(single: boolean) {
       tables[table] ??= [];
+      const injected = nextError[table];
+      if (injected && op !== 'select') {
+        nextError[table] = undefined;
+        return { data: null, error: injected };
+      }
       if (op === 'insert') {
         const row: Row = { created_at: new Date().toISOString(), expires_at: null, ...pending };
         tables[table].push(row);
@@ -60,8 +67,10 @@ export function createSupabaseFake() {
         return { data: single ? (rows[0] ?? null) : rows, error: null };
       }
       if (op === 'delete') {
+        // Comme `.delete().select()` : renvoie les lignes supprimées
+        const removed = tables[table].filter(match);
         tables[table] = tables[table].filter((r) => !match(r));
-        return { data: null, error: null };
+        return { data: single ? (removed[0] ?? null) : removed, error: null };
       }
       const rows = tables[table].filter(match);
       if (countOnly) return { data: null, count: rows.length, error: null };
@@ -123,6 +132,9 @@ export function createSupabaseFake() {
     },
     seed(next: Tables) {
       tables = structuredClone(next);
+    },
+    failNextWrite(table: string, error: { code: string; message: string; details?: string }) {
+      nextError[table] = error;
     },
     rows(table: string): Row[] {
       return tables[table] ?? [];

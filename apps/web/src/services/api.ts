@@ -172,6 +172,26 @@ export interface QuotaInfo {
   resetSec: number;
 }
 
+export interface PriceAlert {
+  id: string;
+  symbol: string;
+  direction: 'above' | 'below';
+  /** Seuil dans la devise de cotation. */
+  threshold: number;
+  currency: string;
+  kind: 'price' | 'stop' | 'target';
+  createdAt: string;
+  triggeredAt: string | null;
+  triggeredPrice: number | null;
+}
+
+export interface NewPriceAlert {
+  symbol: string;
+  direction: PriceAlert['direction'];
+  threshold: number;
+  kind: PriceAlert['kind'];
+}
+
 export interface ShareInfo {
   token: string;
   created_at: string;
@@ -225,6 +245,10 @@ export const api = {
 
   getSettings: () => get<UserSettings>('/user/settings'),
   saveSettings: (s: Partial<UserSettings>) => put<{ ok: true }>('/user/settings', s),
+
+  getAlerts: (symbol: string) => get<{ alerts: PriceAlert[] }>('/user/alerts', { symbol }),
+  createAlert: (alert: NewPriceAlert) => post<PriceAlert>('/user/alerts', alert),
+  deleteAlert: (id: string) => del<{ ok: true }>(`/user/alerts/${encodeURIComponent(id)}`),
 
   getWatchlist: () => get<{ tickers: string[] }>('/user/watchlist'),
   addToWatchlist: (ticker: string) => post<{ ok: true }>('/user/watchlist', { ticker }),
