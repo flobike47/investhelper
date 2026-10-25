@@ -49,3 +49,32 @@ export function lastDefined<T>(arr: (T | null)[]): T | null {
   }
   return null;
 }
+
+/**
+ * Average True Range de Wilder (« New Concepts in Technical Trading Systems »,
+ * 1978) — même calcul que StockCharts / TradingView.
+ * True range = max(haut − bas, |haut − clôture précédente|, |bas − clôture précédente|),
+ * celui de la première bougie = haut − bas. Première valeur = moyenne des
+ * `period` premiers TR, puis lissage `(prev × (n − 1) + tr) / n`.
+ * Unité : celle des prix (pas un pourcentage).
+ */
+export function atr(high: number[], low: number[], close: number[], period = 14): (number | null)[] {
+  const n = Math.min(high.length, low.length, close.length);
+  const out: (number | null)[] = new Array(n).fill(null);
+  if (n < period) return out;
+
+  const tr = (i: number) =>
+    i === 0
+      ? high[0] - low[0]
+      : Math.max(high[i] - low[i], Math.abs(high[i] - close[i - 1]), Math.abs(low[i] - close[i - 1]));
+
+  let sum = 0;
+  for (let i = 0; i < period; i++) sum += tr(i);
+  let prev = sum / period;
+  out[period - 1] = prev;
+  for (let i = period; i < n; i++) {
+    prev = (prev * (period - 1) + tr(i)) / period;
+    out[i] = prev;
+  }
+  return out;
+}

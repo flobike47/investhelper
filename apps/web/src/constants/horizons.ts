@@ -12,6 +12,12 @@ export interface HorizonConfig {
   smaShort: number;
   smaLong: number;
   rsiPeriod: number;
+  /**
+   * Distance du stop technique sous l'entrée, en multiples d'ATR (2 à 3 ATR est
+   * l'usage courant : hors du bruit quotidien sans exposer trop de capital).
+   * null en long terme : la sortie se fait sur thèse cassée, pas sur un stop.
+   */
+  atrStopMultiple: number | null;
 }
 
 export const HORIZONS: Record<Horizon, HorizonConfig> = {
@@ -25,6 +31,7 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     smaShort: 20,
     smaLong: 50,
     rsiPeriod: 14,
+    atrStopMultiple: 2,
   },
   medium: {
     id: 'medium',
@@ -36,6 +43,7 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     smaShort: 50,
     smaLong: 200,
     rsiPeriod: 14,
+    atrStopMultiple: 3,
   },
   long: {
     id: 'long',
@@ -49,6 +57,7 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     smaShort: 10,
     smaLong: 40,
     rsiPeriod: 14,
+    atrStopMultiple: null,
   },
 };
 

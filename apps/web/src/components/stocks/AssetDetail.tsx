@@ -13,6 +13,7 @@ import { findInUniverse } from '@/constants/universe';
 import { lastDefined, rsi } from '@/lib/indicators';
 import { findRsiAnalog, pickBucketFromRsi } from '@/lib/historicalAnalog';
 import { buildPlaybook } from '@/lib/playbook';
+import { buildTradeLevels } from '@/lib/tradePlan';
 import { convertToEur, formatEur, formatNative, inferCurrency, priceToEur } from '@/lib/currency';
 import { formatSignedPct } from '@/lib/format';
 import { describeError } from '@/lib/watchlistSummary';
@@ -20,6 +21,9 @@ import { SignalTag } from '@/components/common/SignalTag';
 import { ChangeIndicator } from './ChangeIndicator';
 import { PriceSparkline } from './PriceSparkline';
 import { SENTIMENT_COLORS, SENTIMENT_LABELS } from './sentiment';
+
+const ratioFormatter = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const formatRatio = (r: number) => ratioFormatter.format(r);
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em' }}>{children}</h3>;
@@ -70,14 +74,21 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
     horizonBars: analogBarsFor(horizon),
     rsiPeriod: cfg.rsiPeriod,
   });
+  // Niveaux en devise native, calculés sur le signal combiné affiché.
+  const levels = buildTradeLevels({
+    candle,
+    signal: score?.signal ?? 'unknown',
+    horizon: cfg,
+    smaShort: score?.technical.smaShort ?? null,
+    targetMean: score?.analyst.targetMean ?? null,
+  });
   const playbook = buildPlaybook({
     horizon,
-    currentPrice: toEur(ticker.price),
-    entry: toEur(score?.technical.entry ?? null),
-    exit: toEur(score?.technical.exit ?? null),
+    entry: toEur(levels.entry),
+    stop: toEur(levels.stop),
+    target: toEur(levels.target),
     smaShort: toEur(score?.technical.smaShort ?? null),
     smaLong: toEur(score?.technical.smaLong ?? null),
-    targetMean: toEur(score?.analyst.targetMean ?? null),
   });
 
   const confirmRemove = () =>
@@ -208,14 +219,36 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
       </section>
 
       <section aria-labelledby="asset-plan" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <SectionTitle>
-          <span id="asset-plan">Plan conditionnel</span>
-        </SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-          <Tile label="Zone d'entrée" value={priceToEur(score?.technical.entry ?? null, symbol, rates)} />
-          <Tile label="Seuil de sortie" value={priceToEur(score?.technical.exit ?? null, symbol, rates)} />
-          <Tile label="Détention" value={playbook.holdingPeriod} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <SectionTitle>
+            <span id="asset-plan">Plan conditionnel</span>
+          </SectionTitle>
+          <span style={{ fontSize: 13, color: token.colorTextSecondary }}>Détention typique : {playbook.holdingPeriod}</span>
         </div>
+        {score?.signal === 'sell' && (
+          <p style={{ margin: 0, fontSize: 14, color: token.colorTextSecondary }}>
+            Pas de zone d'entrée sur un signal baissier.
+          </p>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+          <Tile label="Zone d'entrée" value={priceToEur(levels.entry, symbol, rates)} />
+          {cfg.atrStopMultiple === null ? (
+            <Tile label="Sortie" value="Sur thèse" />
+          ) : (
+            <Tile label="Stop technique" value={priceToEur(levels.stop, symbol, rates)} />
+          )}
+          <Tile label="Objectif" value={priceToEur(levels.target, symbol, rates)} />
+        </div>
+        {levels.riskReward !== null && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+            <span className="tabular-nums">Gain/risque 1 : {formatRatio(levels.riskReward)}</span>
+            {levels.unfavorable && (
+              <Tag color="warning" style={{ marginInlineEnd: 0 }}>
+                Défavorable
+              </Tag>
+            )}
+          </div>
+        )}
         <Collapse
           ghost
           size="small"
