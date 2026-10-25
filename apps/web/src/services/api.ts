@@ -6,7 +6,7 @@ import type {
   SymbolSearchResult,
 } from '@/types/finnhub';
 import type { NewsApiResponse } from '@/types/news';
-import type { SignalDetail, SignalRow } from '@/types/signals';
+import type { SignalDetailForUser, SignalRow } from '@/types/signals';
 import type { Horizon } from '@/constants/horizons';
 import type { PushTestReport } from '@/lib/push';
 
@@ -143,6 +143,10 @@ export interface UserSettings {
   podcastPushTime: string;
   /** Fuseau IANA de l'appareil qui a réglé le rappel. */
   timezone: string;
+  /** Capital consacré aux positions, en euros ; null tant qu'il n'est pas renseigné. */
+  capitalEur: number | null;
+  /** Part du capital risquée par position si le stop est touché, en %. */
+  riskPerTradePct: number;
 }
 
 export interface PodcastEpisodeDto {
@@ -179,7 +183,7 @@ export const api = {
 
   /** Fiche complète calculée par le BFF (signal, plan, analogue, playbook). */
   signal: (symbol: string, horizon: Horizon) =>
-    get<SignalDetail>(`/signals/${encodeURIComponent(symbol)}`, { horizon }),
+    get<SignalDetailForUser>(`/signals/${encodeURIComponent(symbol)}`, { horizon }),
 
   /** Lignes de liste, 30 symboles au plus par appel (voir MAX_SIGNALS_PER_CALL). */
   signals: (symbols: string[], horizon: Horizon) =>

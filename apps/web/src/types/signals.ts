@@ -86,3 +86,18 @@ export interface SignalRow {
   closes: number[];
   errors: string[];
 }
+
+export interface PositionSize {
+  shares: number;
+  amountEur: number;
+  maxLossEur: number;
+  cappedByCapital: boolean;
+}
+
+/** Fiche renvoyée à l'utilisateur connecté : avec sa taille de position. */
+export interface SignalDetailForUser extends SignalDetail {
+  capitalSet: boolean;
+  riskPerTradePct: number;
+  /** null sans capital, sans stop (long terme) ou sans montant en euros. */
+  sizing: PositionSize | null;
+}
