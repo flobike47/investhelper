@@ -25,6 +25,8 @@ const SERVER: UserSettings = {
   podcastPushEnabled: false,
   podcastPushTime: '08:00',
   timezone: 'Europe/Paris',
+  capitalEur: null,
+  riskPerTradePct: 1,
 };
 
 // État de l'appareil (support, permission, abonnement) : piloté par chaque test
@@ -94,6 +96,27 @@ describe('Settings', () => {
     // L'horizon « long » n'est pas renvoyé : il ne peut pas être écrasé
     expect(api.saveSettings).toHaveBeenCalledWith({ theme: 'light' });
     expect(await screen.findByText('Enregistré')).toBeInTheDocument();
+  });
+
+  it('enregistre le capital à la sortie du champ, pas à chaque frappe', async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(SERVER);
+    renderPage(<Settings />);
+
+    const input = await screen.findByRole('spinbutton', { name: 'Capital en euros' });
+    fireEvent.change(input, { target: { value: '15000' } });
+    expect(api.saveSettings).not.toHaveBeenCalled();
+    fireEvent.blur(input);
+
+    await waitFor(() => expect(api.saveSettings).toHaveBeenCalledWith({ capitalEur: 15000 }));
+  });
+
+  it('enregistre le risque par position choisi', async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(SERVER);
+    renderPage(<Settings />);
+
+    fireEvent.click(await screen.findByRole('radio', { name: '0,5 %' }));
+
+    await waitFor(() => expect(api.saveSettings).toHaveBeenCalledWith({ riskPerTradePct: 0.5 }));
   });
 
   it("n'annonce pas de succès si l'enregistrement échoue", async () => {

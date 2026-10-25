@@ -14,6 +14,8 @@ const DEFAULTS: UserSettings = {
   podcastPushEnabled: false,
   podcastPushTime: '08:00',
   timezone: 'Europe/Paris',
+  capitalEur: null,
+  riskPerTradePct: 1,
 };
 
 /**
@@ -59,6 +61,8 @@ export function useUserSettings() {
     podcastDuration: query.data?.podcastDuration ?? DEFAULTS.podcastDuration,
     podcastPushEnabled: query.data?.podcastPushEnabled ?? DEFAULTS.podcastPushEnabled,
     podcastPushTime: query.data?.podcastPushTime ?? DEFAULTS.podcastPushTime,
+    capitalEur: query.data?.capitalEur ?? DEFAULTS.capitalEur,
+    riskPerTradePct: query.data?.riskPerTradePct ?? DEFAULTS.riskPerTradePct,
     loading: query.isLoading,
     /** Erreur de chargement des réglages serveur (ApiError). */
     error: query.error,
