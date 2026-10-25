@@ -43,7 +43,7 @@ async function withSizing(detail: SignalDetail, userId: string): Promise<SignalD
   };
 }
 
-function parseHorizon(input: unknown): Horizon {
+export function parseHorizon(input: unknown): Horizon {
   if (input === undefined) return 'medium';
   if (typeof input === 'string' && (HORIZON_IDS as readonly string[]).includes(input)) return input as Horizon;
   throw new BadRequest('horizon invalide (short, medium ou long)');

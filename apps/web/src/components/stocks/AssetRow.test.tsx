@@ -7,6 +7,7 @@ import { AssetRow } from './AssetRow';
 
 const base: TickerView = {
   symbol: 'NVDA',
+  name: 'NVIDIA', // nom fourni par le BFF
   loading: false,
   error: null,
   currency: 'USD',

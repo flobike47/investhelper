@@ -34,6 +34,8 @@ export interface Playbook {
 
 export interface SignalDetail {
   symbol: string;
+  /** Nom connu de l'univers de l'app ; null sinon. */
+  name: string | null;
   horizon: Horizon;
   currency: string;
   barUnit: 'séance' | 'semaine';
@@ -78,6 +80,7 @@ export interface SignalDetail {
 
 export interface SignalRow {
   symbol: string;
+  name: string | null;
   currency: string | null;
   price: Money;
   changePct: number | null;
@@ -100,4 +103,20 @@ export interface SignalDetailForUser extends SignalDetail {
   riskPerTradePct: number;
   /** null sans capital, sans stop (long terme) ou sans montant en euros. */
   sizing: PositionSize | null;
+}
+
+/** Idées du moment (GET /api/ideas), classées par le BFF. */
+export interface IdeaPick {
+  symbol: string;
+  name: string;
+  themes: string[];
+  /** −1 baissier … +1 haussier, moyenne des thèmes concernés. */
+  themeBias: number;
+  row: SignalRow;
+}
+
+export interface Ideas {
+  picks: IdeaPick[];
+  /** Candidats non classés faute de score, avec la raison. */
+  errors: { symbol: string; error: string }[];
 }
