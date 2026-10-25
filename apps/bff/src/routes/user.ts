@@ -22,11 +22,18 @@ interface SettingsBody {
   podcastPushTime?: string;
   /** Fuseau IANA du navigateur (ex. Europe/Paris). */
   timezone?: string;
+  /** Capital consacré aux positions, en euros ; null pour l'effacer. */
+  capitalEur?: number | null;
+  /** Part du capital risquée par position, en %. */
+  riskPerTradePct?: number;
 }
 
 const PODCAST_DURATIONS = ['auto', '2', '4', '8'] as const;
 const DEFAULT_PUSH_TIME = '08:00';
 const DEFAULT_TIMEZONE = 'Europe/Paris';
+const MAX_CAPITAL_EUR = 1_000_000_000;
+const MAX_RISK_PCT = 5;
+const DEFAULT_RISK_PCT = 1;
 
 interface AddTickerBody { ticker: string }
 interface AddCategoryBody { name: string }
@@ -47,7 +54,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const user = requireUser(req);
     const { data, error } = await supabaseAdmin
       .from('user_settings')
-      .select('horizon, theme, podcast_duration, podcast_push_enabled, podcast_push_time, timezone')
+      .select('horizon, theme, podcast_duration, podcast_push_enabled, podcast_push_time, timezone, capital_eur, risk_per_trade_pct')
       .eq('user_id', user.id)
       .maybeSingle();
     if (error) throw error;
@@ -58,6 +65,9 @@ export async function registerUserRoutes(app: FastifyInstance) {
       podcastPushEnabled: data?.podcast_push_enabled ?? false,
       podcastPushTime: data?.podcast_push_time ?? DEFAULT_PUSH_TIME,
       timezone: data?.timezone ?? DEFAULT_TIMEZONE,
+      // numeric Postgres : converti explicitement (selon la taille, PostgREST peut renvoyer une chaîne)
+      capitalEur: data?.capital_eur != null ? Number(data.capital_eur) : null,
+      riskPerTradePct: data?.risk_per_trade_pct != null ? Number(data.risk_per_trade_pct) : DEFAULT_RISK_PCT,
     };
   });
 
@@ -82,10 +92,25 @@ export async function registerUserRoutes(app: FastifyInstance) {
     if (body.timezone !== undefined && !isValidTimeZone(body.timezone)) {
       throw new BadRequest('timezone invalide');
     }
+    const { capitalEur, riskPerTradePct } = body;
+    if (
+      capitalEur !== undefined &&
+      capitalEur !== null &&
+      (typeof capitalEur !== 'number' || !Number.isFinite(capitalEur) || capitalEur <= 0 || capitalEur > MAX_CAPITAL_EUR)
+    ) {
+      throw new BadRequest(`capitalEur invalide (nombre > 0 et ≤ ${MAX_CAPITAL_EUR})`);
+    }
+    if (
+      riskPerTradePct !== undefined &&
+      (typeof riskPerTradePct !== 'number' || !Number.isFinite(riskPerTradePct) || riskPerTradePct <= 0 || riskPerTradePct > MAX_RISK_PCT)
+    ) {
+      throw new BadRequest(`riskPerTradePct invalide (> 0 et ≤ ${MAX_RISK_PCT})`);
+    }
+    const sizingChanged = capitalEur !== undefined || riskPerTradePct !== undefined;
     const { podcastPushEnabled, podcastPushTime, timezone } = body;
     const pushChanged =
       podcastPushEnabled !== undefined || podcastPushTime !== undefined || timezone !== undefined;
-    if (!horizon && !theme && !podcastDuration && !pushChanged) {
+    if (!horizon && !theme && !podcastDuration && !pushChanged && !sizingChanged) {
       throw new BadRequest('Aucune valeur à mettre à jour');
     }
 
@@ -119,6 +144,9 @@ export async function registerUserRoutes(app: FastifyInstance) {
           podcast_push_time: podcastPushTime,
           timezone,
           podcast_push_last_sent_on: lastSentOn,
+          // Arrondi au centime / au centième de % comme les colonnes numeric(…, 2)
+          capital_eur: capitalEur === undefined || capitalEur === null ? capitalEur : Math.round(capitalEur * 100) / 100,
+          risk_per_trade_pct: riskPerTradePct === undefined ? undefined : Math.round(riskPerTradePct * 100) / 100,
         },
         { onConflict: 'user_id' },
       );

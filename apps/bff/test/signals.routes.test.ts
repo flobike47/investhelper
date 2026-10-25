@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { auth } from './helpers.js';
+import { USER_A, auth, createSupabaseFake } from './helpers.js';
 import { HttpError } from '../src/validation.js';
 import { candleOf, linear } from './finance/testSeries.js';
 
+const { fake } = vi.hoisted(() => ({ fake: {} as ReturnType<typeof createSupabaseFake> }));
 const m = vi.hoisted(() => ({
   cachedQuote: vi.fn(),
   cachedCandles: vi.fn(),
@@ -19,7 +20,8 @@ vi.mock('ioredis', async () => {
 });
 vi.mock('../src/providers/supabaseAdmin.js', async () => {
   const { createSupabaseFake } = await import('./helpers.js');
-  return { supabaseAdmin: createSupabaseFake() };
+  Object.assign(fake, createSupabaseFake());
+  return { supabaseAdmin: fake };
 });
 vi.mock('../src/marketCache.js', () => m);
 
@@ -43,12 +45,13 @@ beforeEach(() => {
   m.cachedPriceTarget.mockResolvedValue({ symbol: 'AAPL', lastUpdated: '', targetHigh: 160, targetLow: 110, targetMean: 140, targetMedian: 138 });
   m.cachedFxRates.mockResolvedValue({ USD: 1.25 });
   m.cachedNextEarnings.mockResolvedValue(null);
+  fake.seed({ user_settings: [] });
 });
 
 /** Date UTC à `days` jours d'aujourd'hui, au format YYYY-MM-DD. */
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 
-const get = (url: string, token: 'token-a' | null = 'token-a') =>
+const get = (url: string, token: 'token-a' | 'token-b' | null = 'token-a') =>
   app.inject({ method: 'GET', url, headers: token ? auth(token) : {} });
 
 describe('GET /api/signals/:symbol', () => {
@@ -133,6 +136,30 @@ describe('GET /api/signals/:symbol', () => {
     expect(d.barUnit).toBe('semaine');
     expect(d.levels.stopApplies).toBe(false);
     expect(d.levels.stop.native).toBeNull();
+  });
+});
+
+describe('taille de position dans la fiche', () => {
+  it("calcule le nombre de titres avec le capital et le risque de l'utilisateur", async () => {
+    fake.seed({ user_settings: [{ user_id: USER_A, capital_eur: 10_000, risk_per_trade_pct: 1 }] });
+    const d = (await get('/api/signals/AAPL?horizon=short')).json();
+    expect(d).toMatchObject({ capitalSet: true, riskPerTradePct: 1 });
+    // Risque par titre = 2 ATR = 4 $ = 3,20 € ; 100 € / 3,20 € → 31 titres.
+    expect(d.sizing.shares).toBe(31);
+    expect(d.sizing.maxLossEur).toBeLessThanOrEqual(100);
+  });
+
+  it("n'utilise jamais le capital d'un autre utilisateur", async () => {
+    fake.seed({ user_settings: [{ user_id: USER_A, capital_eur: 10_000, risk_per_trade_pct: 1 }] });
+    const d = (await get('/api/signals/AAPL?horizon=short', 'token-b')).json();
+    expect(d).toMatchObject({ capitalSet: false, sizing: null, riskPerTradePct: 1 });
+  });
+
+  it('ne calcule rien sans stop technique (long terme)', async () => {
+    fake.seed({ user_settings: [{ user_id: USER_A, capital_eur: 10_000, risk_per_trade_pct: 1 }] });
+    m.cachedCandles.mockResolvedValue({ ...candleOf(linear(261, 100, 1)), currency: 'USD', source: 'twelvedata' });
+    const d = (await get('/api/signals/AAPL?horizon=long')).json();
+    expect(d).toMatchObject({ capitalSet: true, sizing: null });
   });
 });
 
