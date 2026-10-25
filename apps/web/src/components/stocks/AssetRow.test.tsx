@@ -1,18 +1,25 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderPage } from '@/hooks/test-utils';
 import { ApiError } from '@/services/api';
-import type { AnalyzedTicker } from '@/hooks/useStockData';
+import type { TickerView } from '@/hooks/useSignals';
 import { AssetRow } from './AssetRow';
 
-vi.mock('@/hooks/useStockData', () => ({ useCandles: () => ({ data: undefined }) }));
-vi.mock('@/hooks/useFx', () => ({ useFxRates: () => ({ data: { USD: 1.1 } }) }));
-
-const base: AnalyzedTicker = { symbol: 'NVDA', loading: false, error: null, price: 110, changePct: 2.314, score: null };
+const base: TickerView = {
+  symbol: 'NVDA',
+  loading: false,
+  error: null,
+  currency: 'USD',
+  price: { native: 110, eur: 100 }, // conversion faite par le BFF
+  changePct: 2.314,
+  score: null,
+  signal: 'unknown',
+  closes: [],
+};
 
 describe('AssetRow', () => {
   it('affiche cours converti en €, variation signée et nom, et pointe vers la fiche', () => {
-    renderPage(<AssetRow data={base} horizon="medium" to="/asset/NVDA" />);
+    renderPage(<AssetRow data={base} to="/asset/NVDA" />);
     const link = screen.getByRole('link', { name: /NVDA/ });
     expect(link).toHaveAttribute('href', '/asset/NVDA');
     expect(screen.getByText(/100,00\s€/)).toBeInTheDocument();
@@ -24,7 +31,6 @@ describe('AssetRow', () => {
     renderPage(
       <AssetRow
         data={{ ...base, price: null, changePct: null, error: new ApiError('Finnhub : délai dépassé', 504, 'r1') }}
-        horizon="medium"
         to="/asset/NVDA"
       />,
     );

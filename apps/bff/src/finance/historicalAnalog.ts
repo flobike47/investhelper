@@ -1,6 +1,6 @@
-import type { Candle } from '@/types/finnhub';
-import { rsi } from './indicators';
-import { MIN_ANALOG_SAMPLE } from '@/constants/horizons';
+import type { Candle } from '../types.js';
+import { rsi } from './indicators.js';
+import { MIN_ANALOG_SAMPLE } from './horizons.js';
 
 export interface HistoricalAnalog {
   /** Description du setup actuel (ex: "RSI < 35 (survente)") */

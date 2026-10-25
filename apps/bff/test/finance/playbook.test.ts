@@ -1,6 +1,5 @@
-// @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { buildPlaybook } from './playbook';
+import { buildPlaybook } from '../../src/finance/playbook.js';
 
 const empty = { entry: null, stop: null, target: null, smaShort: null, smaLong: null };
 

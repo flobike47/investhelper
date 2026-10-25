@@ -1,5 +1,5 @@
-import type { Horizon } from '@/constants/horizons';
-import { formatEur } from './currency';
+import type { Horizon } from './horizons.js';
+import { formatEur } from './currency.js';
 
 export interface Playbook {
   /** Durée de détention typique recommandée pour cet horizon. */

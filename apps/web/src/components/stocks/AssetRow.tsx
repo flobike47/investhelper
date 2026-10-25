@@ -1,9 +1,7 @@
 import { Skeleton, theme } from 'antd';
 import { Link } from 'react-router-dom';
-import { useCandles, type AnalyzedTicker } from '@/hooks/useStockData';
-import { useFxRates } from '@/hooks/useFx';
-import { HORIZONS, type Horizon } from '@/constants/horizons';
-import { priceToEur } from '@/lib/currency';
+import type { TickerView } from '@/hooks/useSignals';
+import { formatMoney } from '@/lib/currency';
 import { formatSignedPct } from '@/lib/format';
 import { describeError, tickerStatus, trendOf } from '@/lib/watchlistSummary';
 import { findInUniverse } from '@/constants/universe';
@@ -17,21 +15,17 @@ const SIGNAL_LABELS = { buy: 'Signal haussier', hold: 'Neutre', sell: 'Signal ba
  */
 export function AssetRow({
   data,
-  horizon,
   to,
   selected = false,
   label,
 }: {
-  data: AnalyzedTicker;
-  horizon: Horizon;
+  data: TickerView;
   to: string;
   selected?: boolean;
   /** Ligne secondaire (par défaut : nom connu de l'actif). */
   label?: string;
 }) {
   const { token } = theme.useToken();
-  const { data: candle } = useCandles(data.symbol, HORIZONS[horizon]);
-  const { data: rates } = useFxRates();
   const status = tickerStatus(data);
   const name = label ?? findInUniverse(data.symbol)?.name;
   const trend = trendOf(data.changePct);
@@ -39,8 +33,8 @@ export function AssetRow({
     trend === 'up' ? token.colorSuccessText : trend === 'down' ? token.colorErrorText : token.colorTextSecondary;
   const toneBg =
     trend === 'up' ? token.colorSuccessBg : trend === 'down' ? token.colorErrorBg : token.colorFillTertiary;
-  const signal = data.score?.signal ?? 'unknown';
-  const price = priceToEur(data.price, data.symbol, rates);
+  const signal = data.signal;
+  const price = formatMoney(data.price, data.currency);
   const pct = formatSignedPct(data.changePct);
   const error = status === 'error' ? describeError(data.error) : null;
 
@@ -75,7 +69,7 @@ export function AssetRow({
           {error ? 'Données indisponibles' : [name, SIGNAL_LABELS[signal]].filter(Boolean).join(' · ') || ' '}
         </span>
       </span>
-      {status === 'loading' ? <span /> : <MiniSparkline candle={candle} />}
+      {status === 'loading' ? <span /> : <MiniSparkline closes={data.closes} />}
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
         {status === 'loading' ? (
           <Skeleton.Input active size="small" style={{ width: 80, minWidth: 80 }} />

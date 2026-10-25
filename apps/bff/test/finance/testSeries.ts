@@ -1,4 +1,4 @@
-import type { Candle } from '@/types/finnhub';
+import type { Candle } from '../../src/types.js';
 
 /**
  * Séries de prix synthétiques pour les tests de la logique financière.

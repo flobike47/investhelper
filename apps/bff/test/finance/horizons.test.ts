@@ -1,6 +1,5 @@
-// @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { HORIZON_LIST, analogBarsFor, type HorizonConfig } from './horizons';
+import { HORIZON_LIST, analogBarsFor, type HorizonConfig } from '../../src/finance/horizons.js';
 
 /** Nombre de bougies réellement demandé à Twelve Data (même calcul que le BFF, providers/twelvedata.ts). */
 function barsRequested(h: HorizonConfig): number {
