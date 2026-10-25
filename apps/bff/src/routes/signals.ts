@@ -4,6 +4,7 @@ import { computeRows, computeSignal, type SignalDetail } from '../signals.js';
 import type { Horizon } from '../finance/horizons.js';
 import { positionSize, type PositionSize } from '../finance/positionSize.js';
 import { supabaseAdmin } from '../providers/supabaseAdmin.js';
+import { getTrackRecord } from '../trackRecord.js';
 import { BadRequest, validateSymbol } from '../validation.js';
 
 const HORIZON_IDS: readonly Horizon[] = ['short', 'medium', 'long'];
@@ -50,6 +51,12 @@ export function parseHorizon(input: unknown): Horizon {
 }
 
 export async function registerSignalRoutes(app: FastifyInstance) {
+  // Route statique : prioritaire sur /signals/:symbol dans le routeur Fastify.
+  app.get<{ Querystring: { horizon?: string } }>('/signals/track-record', async (req) => {
+    requireUser(req);
+    return getTrackRecord(parseHorizon(req.query.horizon));
+  });
+
   app.get<{ Params: { symbol: string }; Querystring: { horizon?: string } }>('/signals/:symbol', async (req) => {
     const user = requireUser(req);
     const symbol = validateSymbol(req.params.symbol);

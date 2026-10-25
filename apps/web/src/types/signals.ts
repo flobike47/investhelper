@@ -120,3 +120,22 @@ export interface Ideas {
   /** Candidats non classés faute de score, avec la raison. */
   errors: { symbol: string; error: string }[];
 }
+
+/** Performance réelle des signaux émis (GET /api/signals/track-record). */
+export interface TrackWindowStats {
+  /** Nombre de signaux mesurés (un par changement de signal). */
+  n: number;
+  /** Ratios (0.05 = +5 %). */
+  medianReturn: number | null;
+  medianExcess: number | null;
+  significant: boolean;
+}
+
+export type TrackWindowId = '1m' | '3m' | '12m';
+
+export interface TrackRecord {
+  horizon: Horizon;
+  benchmark: string;
+  since: string | null;
+  bySignal: Record<'buy' | 'hold' | 'sell', Record<TrackWindowId, TrackWindowStats>>;
+}

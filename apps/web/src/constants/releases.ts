@@ -27,6 +27,7 @@ export const RELEASES: Release[] = [
       'La fiche prévient quand des résultats tombent pendant la durée de détention du plan.',
       'Avec ton capital renseigné dans les réglages, la fiche calcule combien de titres acheter et la perte maximale au stop.',
       'Alertes de prix : une notification quand une action touche son stop, son objectif ou le prix de ton choix.',
+      'Historique des signaux : ce que les signaux de l’app ont réellement donné après 1, 3 et 12 mois, face au S&P 500.',
     ],
     improved: [
       'La watchlist et les idées se chargent plus vite.',
