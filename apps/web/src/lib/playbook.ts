@@ -6,20 +6,23 @@ export interface Playbook {
   holdingPeriod: string;
   /** Description de la fenêtre d'entrée — conditionnelle, pas une date. */
   entryWindow: string;
-  /** Conditions de sortie chiffrées (cible analyste / SMA cassée). */
+  /** Conditions de sortie chiffrées (stop technique, objectif, tendance). */
   exitConditions: string[];
   /** Gestion du risque générique adaptée à l'horizon. */
   risk: string;
 }
 
+/**
+ * Montants déjà convertis en EUR. `entry`, `stop` et `target` viennent de
+ * lib/tradePlan.ts : null quand le signal affiché ne permet pas de plan.
+ */
 interface PlaybookInput {
   horizon: Horizon;
-  currentPrice: number | null;
   entry: number | null;
-  exit: number | null;
+  stop: number | null;
+  target: number | null;
   smaShort: number | null;
   smaLong: number | null;
-  targetMean: number | null;
 }
 
 export function buildPlaybook(i: PlaybookInput): Playbook {
@@ -31,11 +34,15 @@ export function buildPlaybook(i: PlaybookInput): Playbook {
         holdingPeriod: '1 à 8 semaines',
         entryWindow:
           i.entry !== null && i.smaShort !== null
-            ? `Sur pullback vers ${fmt(i.entry)} (zone de la MA20). Ne pas chasser au-dessus de ${fmt(i.smaShort * 1.03)}.`
+            ? `Sur repli vers ${fmt(i.entry)} (zone de la SMA20).`
             : 'Attendre un repli technique avant d\'entrer.',
         exitConditions: [
-          i.exit !== null ? `Take profit visé : ${fmt(i.exit)} (≈ +15% depuis le prix actuel)` : 'Take profit après une hausse de 10-15%',
-          i.smaShort !== null ? `Stop sous la MA20 = ${fmt(i.smaShort * 0.97)} (−3% de marge)` : 'Stop technique sur cassure de la MA20',
+          i.target !== null
+            ? `Objectif technique : ${fmt(i.target)} (2 fois le risque pris)`
+            : 'Objectif après une hausse équivalente à 2 fois le risque pris',
+          i.stop !== null
+            ? `Stop technique possible sous ${fmt(i.stop)} (2 fois la volatilité moyenne sous l'entrée)`
+            : 'Stop technique sous le dernier plus bas',
           'Sortie immédiate si dégradation forte du sentiment news',
         ],
         risk: 'Position-sizing serré (1-3% du capital), stop strict. Sensible aux earnings dans la fenêtre.',
@@ -45,11 +52,16 @@ export function buildPlaybook(i: PlaybookInput): Playbook {
         holdingPeriod: '6 à 18 mois',
         entryWindow:
           i.smaShort !== null
-            ? `Entrée idéale en 2-3 tranches autour de la MA50 (${fmt(i.smaShort)}). Acceptable jusqu'à +5% au-dessus.`
-            : 'Entrée par tranches sur les replis vers la MA50.',
+            ? `Entrée idéale en 2-3 tranches autour de la SMA50 (${fmt(i.smaShort)}). Acceptable jusqu'à +5% au-dessus.`
+            : 'Entrée par tranches sur les replis vers la SMA50.',
         exitConditions: [
-          i.targetMean !== null ? `Cible analystes consensuelle : ${fmt(i.targetMean)}` : 'Atteinte de la cible analystes consensuelle',
-          i.smaLong !== null ? `Stop sur cassure durable de la MA200 (${fmt(i.smaLong)})` : 'Stop sur cassure de la MA200',
+          i.target !== null ? `Cible analystes consensuelle : ${fmt(i.target)}` : 'Atteinte de la cible analystes consensuelle',
+          i.stop !== null
+            ? `Stop technique possible sous ${fmt(i.stop)} (3 fois la volatilité moyenne sous l'entrée)`
+            : 'Stop technique sous le dernier plus bas significatif',
+          i.smaLong !== null
+            ? `Réévaluer la tendance si le cours casse durablement la SMA200 (${fmt(i.smaLong)})`
+            : 'Réévaluer la tendance sur cassure durable de la SMA200',
           'Réévaluer si le consensus analystes bascule en "sell" sur 2 trimestres consécutifs',
         ],
         risk: 'Position-sizing modéré (3-8% du capital). Tolérer une volatilité ± 15% sans paniquer.',

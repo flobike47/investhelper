@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPlaybook } from './playbook';
 
-const empty = { currentPrice: null, entry: null, exit: null, smaShort: null, smaLong: null, targetMean: null };
+const empty = { entry: null, stop: null, target: null, smaShort: null, smaLong: null };
 
 describe('buildPlaybook', () => {
   it.each(['short', 'medium', 'long'] as const)('donne une durée de détention et un risque pour l’horizon %s', (horizon) => {
@@ -18,9 +18,17 @@ describe('buildPlaybook', () => {
     expect(p.exitConditions.join(' ')).not.toMatch(/€/);
   });
 
-  it("chiffre l'entrée et le stop à partir de la moyenne courte", () => {
-    const p = buildPlaybook({ horizon: 'short', ...empty, currentPrice: 100, entry: 98, smaShort: 98 });
+  it('reprend le stop et l’objectif du plan de risque, sans pourcentage fixe', () => {
+    const p = buildPlaybook({ horizon: 'short', ...empty, entry: 98, stop: 94, target: 106, smaShort: 98 });
     expect(p.entryWindow).toContain('98,00');
-    expect(p.exitConditions.join(' ')).toContain('95,06'); // 98 × 0,97
+    expect(p.exitConditions.join(' ')).toContain('94,00');
+    expect(p.exitConditions.join(' ')).toContain('106,00');
+    expect(p.exitConditions.join(' ')).not.toMatch(/15\s?%/);
+  });
+
+  it('présente la cassure de la SMA200 comme une réévaluation, pas comme un stop chiffré', () => {
+    const p = buildPlaybook({ horizon: 'medium', ...empty, smaLong: 150 });
+    const sma200 = p.exitConditions.find((c) => c.includes('SMA200'));
+    expect(sma200).toMatch(/^Réévaluer la tendance/);
   });
 });

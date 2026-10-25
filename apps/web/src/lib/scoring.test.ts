@@ -88,7 +88,7 @@ describe('summarizeAnalysts', () => {
 });
 
 function tech(signal: Signal): TechnicalAnalysis {
-  return { signal, rsi: null, smaShort: null, smaLong: null, trend: 'unknown', entry: null, exit: null, rationale: [] };
+  return { signal, rsi: null, smaShort: null, smaLong: null, trend: 'unknown', rationale: [] };
 }
 function analyst(signal: Signal, targetMean: number | null = null): AnalystSummary {
   return { signal, buyRatio: 0, totalAnalysts: 0, period: null, targetMean, targetHigh: null, targetLow: null };

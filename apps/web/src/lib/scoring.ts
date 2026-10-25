@@ -10,8 +10,6 @@ export interface TechnicalAnalysis {
   smaShort: number | null;
   smaLong: number | null;
   trend: 'up' | 'down' | 'flat' | 'unknown';
-  entry: number | null;
-  exit: number | null;
   rationale: string[];
 }
 
@@ -40,8 +38,6 @@ export function analyzeTechnicals(candle: Candle | null, horizon: HorizonConfig)
       smaShort: null,
       smaLong: null,
       trend: 'unknown',
-      entry: null,
-      exit: null,
       rationale: ['Pas de données historiques disponibles.'],
     };
   }
@@ -100,23 +96,14 @@ export function analyzeTechnicals(candle: Candle | null, horizon: HorizonConfig)
   const signal: Signal =
     buyVotes - sellVotes >= 1.5 ? 'buy' : sellVotes - buyVotes >= 1.5 ? 'sell' : 'hold';
 
-  // Entry = pullback toward short SMA (support) ; exit = long SMA in downtrend or +X% target
-  const entry = smaS !== null ? Math.min(lastClose, smaS) : lastClose;
-  const exit =
-    signal === 'buy'
-      ? lastClose * 1.15
-      : signal === 'sell'
-      ? smaL ?? lastClose * 0.9
-      : null;
-
+  // Les niveaux du plan (entrée, stop, objectif) sont calculés par
+  // lib/tradePlan.ts à partir du signal combiné affiché, pas d'ici.
   return {
     signal,
     rsi: r,
     smaShort: smaS,
     smaLong: smaL,
     trend,
-    entry,
-    exit,
     rationale,
   };
 }
