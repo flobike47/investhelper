@@ -1,6 +1,6 @@
 import type { Candle, RecommendationTrend, PriceTarget } from '@/types/finnhub';
 import { lastDefined, rsi, sma } from './indicators';
-import type { HorizonConfig } from '@/constants/horizons';
+import { smaLabel, type HorizonConfig } from '@/constants/horizons';
 
 export type Signal = 'buy' | 'hold' | 'sell' | 'unknown';
 
@@ -77,12 +77,16 @@ export function analyzeTechnicals(candle: Candle | null, horizon: HorizonConfig)
     }
   }
 
+  const sS = smaLabel(horizon.smaShort, horizon);
+  const sL = smaLabel(horizon.smaLong, horizon);
   if (trend === 'up') {
     buyVotes++;
-    rationale.push(`SMA${horizon.smaShort} > SMA${horizon.smaLong} : tendance haussière.`);
+    rationale.push(`${sS} > ${sL} : tendance haussière.`);
   } else if (trend === 'down') {
     sellVotes++;
-    rationale.push(`SMA${horizon.smaShort} < SMA${horizon.smaLong} : tendance baissière.`);
+    rationale.push(`${sS} < ${sL} : tendance baissière.`);
+  } else if (smaL === null) {
+    rationale.push(`Historique insuffisant pour la ${sL} (${closes.length} bougies) : tendance non évaluée.`);
   }
 
   if (smaS !== null) {

@@ -8,7 +8,7 @@ import { useNextEarnings } from '@/hooks/useEarnings';
 import { useFxRates } from '@/hooks/useFx';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useUserSettings } from '@/hooks/useUserSettings';
-import { HORIZONS, analogDaysFor } from '@/constants/horizons';
+import { HORIZONS, analogBarsFor } from '@/constants/horizons';
 import { findInUniverse } from '@/constants/universe';
 import { lastDefined, rsi } from '@/lib/indicators';
 import { findRsiAnalog, pickBucketFromRsi } from '@/lib/historicalAnalog';
@@ -67,7 +67,7 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
   const currentRsi = candle && candle.s === 'ok' ? lastDefined(rsi(candle.c, cfg.rsiPeriod)) : null;
   const analog = findRsiAnalog(candle, {
     rsiBucket: pickBucketFromRsi(currentRsi),
-    horizonDays: analogDaysFor(horizon),
+    horizonBars: analogBarsFor(horizon),
     rsiPeriod: cfg.rsiPeriod,
   });
   const playbook = buildPlaybook({
@@ -292,7 +292,7 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
             </div>
             <span className="tabular-nums" style={{ fontSize: 13, color: token.colorTextSecondary, lineHeight: 1.4 }}>
               {analog && analog.occurrences > 0
-                ? `Sur ${analog.horizonDays} séances après un RSI comparable · ${analog.occurrences} cas${
+                ? `Sur ${analog.horizonBars} ${cfg.barUnit}s après un RSI comparable · ${analog.occurrences} cas${
                     analog.positiveRatio !== null ? ` · ${(analog.positiveRatio * 100).toFixed(0)}\u202f% positifs` : ''
                   }. Statistique du passé, pas une prévision.`
                 : "Pas assez d'occurrences historiques comparables."}

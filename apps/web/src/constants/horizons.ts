@@ -5,6 +5,9 @@ export interface HorizonConfig {
   label: string;
   description: string;
   candleResolution: 'D' | 'W' | 'M';
+  /** Unité d'une bougie, pour libeller les périodes (« 52 semaines », « 21 séances »). */
+  barUnit: 'séance' | 'semaine';
+  /** Profondeur demandée en jours calendaires (le BFF la convertit en nombre de bougies). */
   lookbackDays: number;
   smaShort: number;
   smaLong: number;
@@ -17,6 +20,7 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     label: 'Court terme',
     description: 'Quelques semaines à 3 mois — signaux techniques, momentum',
     candleResolution: 'D',
+    barUnit: 'séance',
     lookbackDays: 120,
     smaShort: 20,
     smaLong: 50,
@@ -27,6 +31,7 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     label: 'Moyen terme',
     description: '6 mois à 2 ans — tendance, consensus analystes',
     candleResolution: 'D',
+    barUnit: 'séance',
     lookbackDays: 365,
     smaShort: 50,
     smaLong: 200,
@@ -37,16 +42,27 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     label: 'Long terme',
     description: '3 ans et plus — fondamentaux, prix cible analystes',
     candleResolution: 'W',
-    lookbackDays: 365 * 3,
-    smaShort: 50,
-    smaLong: 200,
+    barUnit: 'semaine',
+    // 5 ans ≈ 261 bougies hebdo : assez pour la MM40 et deux fenêtres d'analogue.
+    lookbackDays: 365 * 5,
+    // En hebdo, MM10 / MM40 ≈ MM50 / MM200 en journalier (5 séances par semaine).
+    smaShort: 10,
+    smaLong: 40,
     rsiPeriod: 14,
   },
 };
 
 export const HORIZON_LIST: HorizonConfig[] = [HORIZONS.short, HORIZONS.medium, HORIZONS.long];
 
-/** Fenêtre (en séances) de l'analogue historique pour un horizon : ~1 mois, ~3 mois, ~1 an. */
-export function analogDaysFor(h: Horizon): number {
-  return h === 'short' ? 21 : h === 'medium' ? 63 : 252;
+/**
+ * Fenêtre de l'analogue historique, en bougies de la résolution de l'horizon :
+ * ~1 mois (21 séances), ~3 mois (63 séances), ~1 an (52 semaines).
+ */
+export function analogBarsFor(h: Horizon): number {
+  return h === 'short' ? 21 : h === 'medium' ? 63 : 52;
+}
+
+/** Libellé d'une moyenne mobile selon l'unité des bougies : « SMA20 » ou « SMA10 sem. ». */
+export function smaLabel(period: number, h: HorizonConfig): string {
+  return h.barUnit === 'semaine' ? `SMA${period} sem.` : `SMA${period}`;
 }

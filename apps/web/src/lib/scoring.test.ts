@@ -45,6 +45,18 @@ describe('analyzeTechnicals', () => {
     expect(t.trend).toBe('unknown');
   });
 
+  it("le dit dans la rationale quand l'historique ne suffit pas pour la moyenne longue", () => {
+    const t = analyzeTechnicals(candleOf(linear(30, 100, 1)), short);
+    expect(t.rationale).toContain('Historique insuffisant pour la SMA50 (30 bougies) : tendance non évaluée.');
+  });
+
+  it('évalue la tendance long terme sur 5 ans de bougies hebdomadaires (J1)', () => {
+    const t = analyzeTechnicals(candleOf(linear(261, 100, 1)), HORIZONS.long);
+    expect(t.smaLong).not.toBeNull();
+    expect(t.trend).toBe('up');
+    expect(t.rationale).toContain('SMA10 sem. > SMA40 sem. : tendance haussière.');
+  });
+
   it('explique chaque vote dans la rationale', () => {
     const t = analyzeTechnicals(candleOf(PULLBACK_IN_UPTREND), short);
     expect(t.rationale.some((r) => r.includes('survente'))).toBe(true);
