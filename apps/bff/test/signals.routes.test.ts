@@ -42,7 +42,11 @@ beforeEach(() => {
   m.cachedRecommendations.mockResolvedValue(RECO);
   m.cachedPriceTarget.mockResolvedValue({ symbol: 'AAPL', lastUpdated: '', targetHigh: 160, targetLow: 110, targetMean: 140, targetMedian: 138 });
   m.cachedFxRates.mockResolvedValue({ USD: 1.25 });
+  m.cachedNextEarnings.mockResolvedValue(null);
 });
+
+/** Date UTC à `days` jours d'aujourd'hui, au format YYYY-MM-DD. */
+const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 
 const get = (url: string, token: 'token-a' | null = 'token-a') =>
   app.inject({ method: 'GET', url, headers: token ? auth(token) : {} });
@@ -107,6 +111,19 @@ describe('GET /api/signals/:symbol', () => {
     m.cachedCandles.mockRejectedValue(new HttpError(502, 'down'));
     const res = await get('/api/signals/AAPL');
     expect(res.statusCode).toBe(502);
+  });
+
+  it('signale des résultats qui tombent pendant la détention court terme', async () => {
+    m.cachedNextEarnings.mockResolvedValue({ symbol: 'AAPL', date: inDays(10), hour: 'amc' });
+    const d = (await get('/api/signals/AAPL?horizon=short')).json();
+    expect(d.earnings).toEqual({ date: inDays(10), hour: 'amc', daysUntil: 10, withinWindow: true });
+  });
+
+  it("n'empêche pas la fiche quand la date de résultats est indisponible", async () => {
+    m.cachedNextEarnings.mockRejectedValue(new Error('Yahoo 429'));
+    const res = await get('/api/signals/AAPL');
+    expect(res.statusCode).toBe(200);
+    expect(res.json().earnings).toBeNull();
   });
 
   it('long terme : bougies hebdo sur 5 ans, analogue en semaines, pas de stop technique', async () => {

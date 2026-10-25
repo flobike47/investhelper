@@ -66,6 +66,13 @@ export interface SignalDetail {
   };
   analog: HistoricalAnalog | null;
   playbook: Playbook;
+  /** Prochaine publication de résultats, située par rapport à la fenêtre de l'horizon. */
+  earnings: {
+    date: string;
+    hour: string;
+    daysUntil: number;
+    withinWindow: boolean;
+  } | null;
   errors: string[];
 }
 

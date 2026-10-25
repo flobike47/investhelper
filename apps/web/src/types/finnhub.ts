@@ -34,19 +34,3 @@ export interface SymbolSearchResult {
     type: string;
   }>;
 }
-
-export interface EarningsEvent {
-  date: string;       // YYYY-MM-DD
-  epsActual: number | null;
-  epsEstimate: number | null;
-  hour: string;       // bmo | amc | dmh
-  quarter: number;
-  revenueActual: number | null;
-  revenueEstimate: number | null;
-  symbol: string;
-  year: number;
-}
-
-export interface EarningsCalendarResponse {
-  earningsCalendar: EarningsEvent[];
-}

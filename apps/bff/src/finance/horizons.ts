@@ -18,6 +18,12 @@ export interface HorizonConfig {
    * null en long terme : la sortie se fait sur thèse cassée, pas sur un stop.
    */
   atrStopMultiple: number | null;
+  /**
+   * Avertir si des résultats tombent dans ce nombre de jours : toute la
+   * détention en court terme (56 j ≈ 8 semaines), l'entrée en moyen terme
+   * (21 j). null en long terme : une publication isolée ne change pas le plan.
+   */
+  earningsWarningDays: number | null;
 }
 
 export const HORIZONS: Record<Horizon, HorizonConfig> = {
@@ -32,6 +38,7 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     smaLong: 50,
     rsiPeriod: 14,
     atrStopMultiple: 2,
+    earningsWarningDays: 56,
   },
   medium: {
     id: 'medium',
@@ -44,6 +51,7 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     smaLong: 200,
     rsiPeriod: 14,
     atrStopMultiple: 3,
+    earningsWarningDays: 21,
   },
   long: {
     id: 'long',
@@ -58,6 +66,7 @@ export const HORIZONS: Record<Horizon, HorizonConfig> = {
     smaLong: 40,
     rsiPeriod: 14,
     atrStopMultiple: null,
+    earningsWarningDays: null,
   },
 };
 

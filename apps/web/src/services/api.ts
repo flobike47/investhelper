@@ -4,7 +4,6 @@ import type {
   CompanyProfile,
   CompanyNewsItem,
   SymbolSearchResult,
-  EarningsEvent,
 } from '@/types/finnhub';
 import type { NewsApiResponse } from '@/types/news';
 import type { SignalDetail, SignalRow } from '@/types/signals';
@@ -185,9 +184,6 @@ export const api = {
   /** Lignes de liste, 30 symboles au plus par appel (voir MAX_SIGNALS_PER_CALL). */
   signals: (symbols: string[], horizon: Horizon) =>
     get<SignalRow[]>('/signals', { symbols: symbols.join(','), horizon }),
-
-  nextEarnings: (symbol: string) =>
-    get<EarningsEvent | null>(`/earnings/${encodeURIComponent(symbol)}`),
 
   companyNews: (symbol: string, days = 14) =>
     get<CompanyNewsItem[]>(`/news/company/${encodeURIComponent(symbol)}`, { days }),
