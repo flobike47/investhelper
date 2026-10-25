@@ -4,7 +4,6 @@ import type { TickerView } from '@/hooks/useSignals';
 import { formatMoney } from '@/lib/currency';
 import { formatSignedPct } from '@/lib/format';
 import { describeError, tickerStatus, trendOf } from '@/lib/watchlistSummary';
-import { findInUniverse } from '@/constants/universe';
 import { MiniSparkline } from './MiniSparkline';
 
 const SIGNAL_LABELS = { buy: 'Signal haussier', hold: 'Neutre', sell: 'Signal baissier', unknown: '' } as const;
@@ -27,7 +26,7 @@ export function AssetRow({
 }) {
   const { token } = theme.useToken();
   const status = tickerStatus(data);
-  const name = label ?? findInUniverse(data.symbol)?.name;
+  const name = label ?? data.name;
   const trend = trendOf(data.changePct);
   const tone =
     trend === 'up' ? token.colorSuccessText : trend === 'down' ? token.colorErrorText : token.colorTextSecondary;

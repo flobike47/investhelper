@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { api, type TickerSentiment, type MarketThemes } from '@/services/api';
-import { ALL_SECTORS } from '@/constants/universe';
 
 export function useTickerSentiment(symbol: string) {
   return useQuery<TickerSentiment>({
@@ -14,7 +13,7 @@ export function useTickerSentiment(symbol: string) {
 export function useMarketThemes() {
   return useQuery<MarketThemes>({
     queryKey: ['market-themes'],
-    queryFn: () => api.marketThemes(ALL_SECTORS),
+    queryFn: () => api.marketThemes(),
     staleTime: 3 * 60 * 60_000,
   });
 }
