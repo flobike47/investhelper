@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import type { Horizon } from '@/constants/horizons';
-import type { Money, Signal } from '@/types/signals';
+import type { Money, Signal, SignalRow } from '@/types/signals';
 
 /** Limite du BFF par appel à /api/signals : au-delà, la liste est découpée. */
 export const MAX_SIGNALS_PER_CALL = 30;
@@ -11,6 +11,7 @@ const STALE_MS = 60_000;
 /** État d'affichage d'un ticker dans une liste. */
 export interface TickerView {
   symbol: string;
+  name: string | null;
   loading: boolean;
   error: Error | null;
   currency: string | null;
@@ -44,19 +45,25 @@ export function useSignals(symbols: string[], horizon: Horizon): TickerView[] {
   return symbols.map((symbol, i) => {
     const q = queries[Math.floor(i / MAX_SIGNALS_PER_CALL)];
     const row = q?.data?.find((r) => r.symbol === symbol.toUpperCase()) ?? null;
-    const rowError = row && row.errors.length > 0 ? new Error(row.errors.join(' · ')) : null;
-    return {
-      symbol,
-      loading: q?.isLoading ?? true,
-      error: (q?.error as Error | null) ?? rowError,
-      currency: row?.currency ?? null,
-      price: row?.price ?? null,
-      changePct: row?.changePct ?? null,
-      score: row?.score ?? null,
-      signal: row?.signal ?? 'unknown',
-      closes: row?.closes ?? [],
-    };
+    return rowToView(symbol, row, q?.isLoading ?? true, (q?.error as Error | null) ?? null);
   });
+}
+
+/** Ligne calculée par le BFF → état d'affichage (erreurs partielles comprises). */
+export function rowToView(symbol: string, row: SignalRow | null, loading = false, error: Error | null = null): TickerView {
+  const rowError = row && row.errors.length > 0 ? new Error(row.errors.join(' · ')) : null;
+  return {
+    symbol,
+    name: row?.name ?? null,
+    loading,
+    error: error ?? rowError,
+    currency: row?.currency ?? null,
+    price: row?.price ?? null,
+    changePct: row?.changePct ?? null,
+    score: row?.score ?? null,
+    signal: row?.signal ?? 'unknown',
+    closes: row?.closes ?? [],
+  };
 }
 
 /** Fiche complète d'un actif (signal, plan, analogue, playbook). */

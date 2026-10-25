@@ -9,7 +9,6 @@ import { useTickerSentiment } from '@/hooks/useNewsAnalysis';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { HORIZONS } from '@/constants/horizons';
-import { findInUniverse } from '@/constants/universe';
 import { formatEur, formatMoney, formatNative } from '@/lib/currency';
 import { formatSignedPct } from '@/lib/format';
 import { describeError } from '@/lib/watchlistSummary';
@@ -59,7 +58,7 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
   const sentiment = useTickerSentiment(symbol);
   const watchlist = useWatchlist();
 
-  const name = findInUniverse(symbol)?.name ?? profile.data?.name;
+  const name = d?.name ?? profile.data?.name;
   const currency = d?.currency ?? null;
   const inWatchlist = watchlist.tickers.includes(symbol);
   const analog = d?.analog ?? null;

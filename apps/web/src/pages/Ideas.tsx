@@ -23,7 +23,7 @@ export default function Ideas() {
   const { token } = theme.useToken();
   const { pathname } = useLocation();
   const { horizon, setHorizon } = useUserSettings();
-  const { themes, themesLoading, themesError, picks, picksLoading, picksErrors } = useThematicPicks(horizon, 5);
+  const { themes, themesLoading, themesError, picks, picksLoading, picksError, picksErrors } = useThematicPicks(horizon);
   const [openTheme, setOpenTheme] = useState<string | null>(null);
   const selected = decodeURIComponent(pathname.match(/^\/ideas\/asset\/([^/]+)/)?.[1] ?? '').toUpperCase();
   const card = { background: token.colorBgContainer, borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}` };
@@ -91,7 +91,10 @@ export default function Ideas() {
             Sélection
           </h2>
           {picksLoading && <Skeleton active paragraph={{ rows: 5 }} />}
-          {!picksLoading && picks.length === 0 && picksErrors.length === 0 && !themesError && (
+          {picksError && !themesError && (
+            <Alert type="error" showIcon message="Sélection indisponible" description={describeError(picksError)} />
+          )}
+          {!picksLoading && !picksError && picks.length === 0 && picksErrors.length === 0 && !themesError && (
             <div style={{ ...card, padding: 24 }}>
               <Empty description="Aucune idée calculable pour l'instant." />
             </div>
@@ -104,7 +107,7 @@ export default function Ideas() {
                     data={p.ticker}
                     to={`/ideas/asset/${encodeURIComponent(p.ticker.symbol)}`}
                     selected={p.ticker.symbol === selected}
-                    label={[`${i + 1}. ${p.entry.name}`, p.themes[0]].filter(Boolean).join(' · ')}
+                    label={[`${i + 1}. ${p.name}`, p.themes[0]].filter(Boolean).join(' · ')}
                   />
                 </li>
               ))}

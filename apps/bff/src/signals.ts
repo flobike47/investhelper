@@ -14,6 +14,7 @@ import { findRsiAnalog, pickBucketFromRsi, type HistoricalAnalog } from './finan
 import { buildPlaybook, type Playbook } from './finance/playbook.js';
 import { analyzeTechnicals, combine, summarizeAnalysts, type Signal } from './finance/scoring.js';
 import { buildTradeLevels } from './finance/tradePlan.js';
+import { findInUniverse } from './universe.js';
 
 /**
  * Calcul des signaux côté serveur : le web ne fait plus qu'afficher.
@@ -29,6 +30,8 @@ export interface Money {
 
 export interface SignalDetail {
   symbol: string;
+  /** Nom connu de l'univers de l'app ; null sinon. */
+  name: string | null;
   horizon: Horizon;
   /** Devise de cotation (ISO). */
   currency: string;
@@ -78,6 +81,7 @@ export interface SignalDetail {
 /** Ligne de liste (watchlist, idées) : le strict nécessaire à l'affichage. */
 export interface SignalRow {
   symbol: string;
+  name: string | null;
   currency: string | null;
   price: Money;
   changePct: number | null;
@@ -147,6 +151,7 @@ export async function computeSignal(symbol: string, horizon: Horizon, log?: Fast
 
   return {
     symbol,
+    name: findInUniverse(symbol)?.name ?? null,
     horizon,
     currency,
     barUnit: cfg.barUnit,
@@ -187,6 +192,7 @@ export async function computeSignal(symbol: string, horizon: Horizon, log?: Fast
 export function toRow(d: SignalDetail): SignalRow {
   return {
     symbol: d.symbol,
+    name: d.name,
     currency: d.currency,
     price: d.price,
     changePct: d.changePct,
@@ -213,6 +219,7 @@ export async function computeRows(symbols: string[], horizon: Horizon, log?: Fas
         // Un symbole en échec ne fait pas échouer le lot.
         rows[i] = {
           symbol,
+          name: findInUniverse(symbol)?.name ?? null,
           currency: null,
           price: { native: null, eur: null },
           changePct: null,

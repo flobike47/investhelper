@@ -28,7 +28,10 @@ export const RELEASES: Release[] = [
       'Avec ton capital renseigné dans les réglages, la fiche calcule combien de titres acheter et la perte maximale au stop.',
       'Alertes de prix : une notification quand une action touche son stop, son objectif ou le prix de ton choix.',
     ],
-    improved: ['La watchlist et les idées se chargent plus vite.'],
+    improved: [
+      'La watchlist et les idées se chargent plus vite.',
+      'Les idées du moment puisent dans toutes les valeurs suivies (Europe, luxe, ETF), plus seulement dans la tech américaine.',
+    ],
   },
   {
     id: '2026-10-25',
