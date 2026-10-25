@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { findRsiAnalog, pickBucketFromRsi } from './historicalAnalog';
 import { candleOf, linear, segments } from './testSeries';
-import { analogBarsFor } from '@/constants/horizons';
+import { MIN_ANALOG_SAMPLE, analogBarsFor } from '@/constants/horizons';
 
 /** Deux épisodes de survente bien séparés, chacun suivi d'une reprise. */
 const TWO_DIPS = segments(100, [
@@ -35,6 +35,41 @@ describe('findRsiAnalog', () => {
     expect(a!.worstReturn!).toBeLessThanOrEqual(a!.medianReturn!);
     expect(a!.bestReturn!).toBeGreaterThanOrEqual(a!.medianReturn!);
     expect(a?.horizonBars).toBe(20);
+  });
+});
+
+describe('findRsiAnalog — honnêteté statistique (J10)', () => {
+  it('ne compte pas un second cas dont la fenêtre chevauche celle du précédent', () => {
+    // Les deux creux sont espacés d'environ 50 bougies : avec une fenêtre de 60, ils se chevauchent.
+    const a = findRsiAnalog(candleOf(TWO_DIPS), { rsiBucket: 'oversold', horizonBars: 60 });
+    expect(a?.occurrences).toBe(1);
+  });
+
+  it('prend la moyenne des deux valeurs centrales quand le nombre de cas est pair', () => {
+    const a = findRsiAnalog(candleOf(TWO_DIPS), { rsiBucket: 'oversold', horizonBars: 5 });
+    expect(a?.occurrences).toBe(2);
+    expect(a!.medianReturn!).toBeCloseTo((a!.worstReturn! + a!.bestReturn!) / 2, 10);
+  });
+
+  it("compare au rendement habituel de l'actif sur la même fenêtre", () => {
+    const a = findRsiAnalog(candleOf(TWO_DIPS), { rsiBucket: 'oversold', horizonBars: 5 });
+    expect(a?.baselineMedian).toBeGreaterThan(0); // la série monte la plupart du temps
+  });
+
+  it(`marque le résultat peu significatif sous ${MIN_ANALOG_SAMPLE} cas`, () => {
+    const a = findRsiAnalog(candleOf(TWO_DIPS), { rsiBucket: 'oversold', horizonBars: 5 });
+    expect(a?.significant).toBe(false);
+  });
+
+  it(`le marque significatif à partir de ${MIN_ANALOG_SAMPLE} cas`, () => {
+    const cycle = [
+      { n: 20, step: 1 },
+      { n: 8, step: -3 },
+    ];
+    const series = segments(100, Array.from({ length: 10 }, () => cycle).flat());
+    const a = findRsiAnalog(candleOf(series), { rsiBucket: 'oversold', horizonBars: 5 });
+    expect(a!.occurrences).toBeGreaterThanOrEqual(MIN_ANALOG_SAMPLE);
+    expect(a?.significant).toBe(true);
   });
 });
 

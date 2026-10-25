@@ -8,6 +8,7 @@ export const SENTIMENT_COLORS: Record<Sentiment, string> = {
   negative: 'red',
   neutral: 'default',
   mixed: 'gold',
+  unknown: 'default',
 };
 
 /** Libellé français du sentiment renvoyé par l'analyse IA. */
@@ -16,4 +17,5 @@ export const SENTIMENT_LABELS: Record<Sentiment, string> = {
   negative: 'Négatif',
   neutral: 'Neutre',
   mixed: 'Mitigé',
+  unknown: 'Données insuffisantes',
 };

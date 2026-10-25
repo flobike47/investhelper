@@ -47,10 +47,11 @@ export interface RecommendationTrend {
 export interface PriceTarget {
   lastUpdated: string;
   symbol: string;
-  targetHigh: number;
-  targetLow: number;
-  targetMean: number;
-  targetMedian: number;
+  /** null quand le provider ne fournit pas la valeur (jamais 0 par défaut). */
+  targetHigh: number | null;
+  targetLow: number | null;
+  targetMean: number | null;
+  targetMedian: number | null;
 }
 
 export interface CompanyNewsItem {
