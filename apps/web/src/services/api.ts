@@ -6,7 +6,7 @@ import type {
   SymbolSearchResult,
 } from '@/types/finnhub';
 import type { NewsApiResponse } from '@/types/news';
-import type { Ideas, SignalDetailForUser, SignalRow } from '@/types/signals';
+import type { Ideas, SignalDetailForUser, SignalRow, TrackRecord } from '@/types/signals';
 import type { Horizon } from '@/constants/horizons';
 import type { PushTestReport } from '@/lib/push';
 
@@ -204,6 +204,9 @@ export const api = {
   /** Fiche complète calculée par le BFF (signal, plan, analogue, playbook). */
   signal: (symbol: string, horizon: Horizon) =>
     get<SignalDetailForUser>(`/signals/${encodeURIComponent(symbol)}`, { horizon }),
+
+  /** Performance réelle des signaux émis, mesurée sur les instantanés quotidiens. */
+  trackRecord: (horizon: Horizon) => get<TrackRecord>('/signals/track-record', { horizon }),
 
   /** Lignes de liste, 30 symboles au plus par appel (voir MAX_SIGNALS_PER_CALL). */
   signals: (symbols: string[], horizon: Horizon) =>

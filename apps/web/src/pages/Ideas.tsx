@@ -8,6 +8,7 @@ import { describeError } from '@/lib/watchlistSummary';
 import { PageHeader } from '@/components/common/PageHeader';
 import { MasterDetail } from '@/components/layout/MasterDetail';
 import { AssetRow } from '@/components/stocks/AssetRow';
+import { SignalTrackRecord } from '@/components/stocks/SignalTrackRecord';
 
 const DIRECTION = {
   bullish: { arrow: '↑', label: 'haussier' },
@@ -125,6 +126,8 @@ export default function Ideas() {
             />
           )}
         </section>
+
+        <SignalTrackRecord horizon={horizon} />
       </MasterDetail>
     </div>
   );

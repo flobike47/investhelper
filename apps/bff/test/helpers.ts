@@ -20,8 +20,10 @@ export function createSupabaseFake() {
   function from(table: string) {
     const filters: Array<(r: Row) => boolean> = [];
     let op: 'select' | 'insert' | 'delete' | 'update' | 'upsert' = 'select';
-    let pending: Row | null = null;
+    let pending: Row | Row[] | null = null;
+    let window: [number, number] | null = null;
     let onConflict: string[] = [];
+    let ignoreDuplicates = false;
     let countOnly = false;
     const match = (r: Row) => filters.every((f) => f(r));
 
@@ -49,21 +51,27 @@ export function createSupabaseFake() {
         return { data: null, error: injected };
       }
       if (op === 'insert') {
-        const row: Row = { created_at: new Date().toISOString(), expires_at: null, ...pending };
-        tables[table].push(row);
-        return { data: row, error: null };
+        const rows = (Array.isArray(pending) ? pending : [pending]).map((p) => ({
+          created_at: new Date().toISOString(),
+          expires_at: null,
+          ...p,
+        }));
+        tables[table].push(...rows);
+        return { data: Array.isArray(pending) ? rows : rows[0], error: null };
       }
       if (op === 'upsert') {
-        // Comme supabase-js : les clés undefined ne sont pas envoyées
-        const patch = Object.fromEntries(Object.entries(pending ?? {}).filter(([, v]) => v !== undefined));
-        const existing = tables[table].find((r) => onConflict.every((k) => r[k] === patch[k]));
-        if (existing) Object.assign(existing, patch);
-        else tables[table].push({ created_at: new Date().toISOString(), ...patch });
+        for (const one of Array.isArray(pending) ? pending : [pending]) {
+          // Comme supabase-js : les clés undefined ne sont pas envoyées
+          const patch = Object.fromEntries(Object.entries(one ?? {}).filter(([, v]) => v !== undefined));
+          const existing = tables[table].find((r) => onConflict.every((k) => r[k] === patch[k]));
+          if (existing && !ignoreDuplicates) Object.assign(existing, patch);
+          else if (!existing) tables[table].push({ created_at: new Date().toISOString(), ...patch });
+        }
         return { data: null, error: null };
       }
       if (op === 'update') {
         const rows = tables[table].filter(match);
-        rows.forEach((r) => Object.assign(r, pending));
+        rows.forEach((r) => Object.assign(r, pending as Row));
         return { data: single ? (rows[0] ?? null) : rows, error: null };
       }
       if (op === 'delete') {
@@ -72,8 +80,9 @@ export function createSupabaseFake() {
         tables[table] = tables[table].filter((r) => !match(r));
         return { data: single ? (removed[0] ?? null) : removed, error: null };
       }
-      const rows = tables[table].filter(match);
-      if (countOnly) return { data: null, count: rows.length, error: null };
+      const all = tables[table].filter(match);
+      const rows = window ? all.slice(window[0], window[1] + 1) : all;
+      if (countOnly) return { data: null, count: all.length, error: null };
       return { data: single ? (rows[0] ?? null) : rows, count: rows.length, error: null };
     }
 
@@ -84,6 +93,10 @@ export function createSupabaseFake() {
       },
       order: () => builder,
       limit: () => builder,
+      range: (from: number, to: number) => {
+        window = [from, to];
+        return builder;
+      },
       eq: (k: string, v: unknown) => {
         filters.push((r) => r[k] === v);
         return builder;
@@ -92,15 +105,16 @@ export function createSupabaseFake() {
         filters.push(orFilter(expr));
         return builder;
       },
-      insert: (row: Row) => {
+      insert: (row: Row | Row[]) => {
         op = 'insert';
         pending = row;
         return builder;
       },
-      upsert: (row: Row, opts?: { onConflict?: string }) => {
+      upsert: (row: Row | Row[], opts?: { onConflict?: string; ignoreDuplicates?: boolean }) => {
         op = 'upsert';
         pending = row;
         onConflict = (opts?.onConflict ?? 'id').split(',');
+        ignoreDuplicates = opts?.ignoreDuplicates ?? false;
         return builder;
       },
       update: (patch: Row) => {
