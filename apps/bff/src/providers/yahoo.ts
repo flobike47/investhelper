@@ -1,7 +1,9 @@
 import axios from 'axios';
-import { DEFAULT_TIMEOUT_MS, httpsAgent } from './http.js';
+import { DEFAULT_TIMEOUT_MS, httpsAgent, ProviderError } from './http.js';
 import { redis } from '../cache.js';
-import type { RecommendationTrend, PriceTarget, EarningsEvent } from '../types.js';
+import type { Resolution } from '../candleBars.js';
+import { toYahooSymbol } from '../symbols.js';
+import type { Candle, RecommendationTrend, PriceTarget, EarningsEvent } from '../types.js';
 
 /**
  * Client Yahoo Finance natif côté BFF — gère lui-même le flow
@@ -11,6 +13,8 @@ import type { RecommendationTrend, PriceTarget, EarningsEvent } from '../types.j
  *   - https://fc.yahoo.com                          → récupère cookies A1/A3
  *   - /v1/test/getcrumb                              → récupère le crumb
  *   - /v10/finance/quoteSummary/{symbol}?modules=…   → données analystes & earnings
+ *   - /v8/finance/chart/{symbol}                     → cours et bougies (sans crumb), seule
+ *     source gratuite pour les places hors US (Twelve Data les réserve au plan Grow)
  *
  * ANTI-RATE-LIMIT (Yahoo est non officiel et 429 facilement) :
  *  - Concurrence max 2 appels en parallèle (les autres queuent)
@@ -169,7 +173,147 @@ async function quoteSummary(symbol: string, modules: string): Promise<YahooSumma
   }
 }
 
+// ---------- Chart (cours + bougies) ------------------------------------------
+interface YahooChartResponse {
+  chart: {
+    result: Array<{
+      meta: {
+        currency?: string;
+        regularMarketPrice?: number;
+        regularMarketChangePercent?: number;
+        regularMarketTime?: number;
+      };
+      timestamp?: number[];
+      indicators: {
+        quote: Array<{
+          open?: (number | null)[];
+          high?: (number | null)[];
+          low?: (number | null)[];
+          close?: (number | null)[];
+          volume?: (number | null)[];
+        }>;
+      };
+    }> | null;
+    error: { code: string; description: string } | null;
+  };
+}
+
+export interface YahooChart {
+  candle: Candle;
+  quote: { c: number; dp: number | null; t: number };
+  /** Devise ISO des prix renvoyés (les sous-unités comme GBp sont converties). */
+  currency: string;
+}
+
+const INTERVAL: Record<Resolution, string> = { D: '1d', W: '1wk', M: '1mo' };
+
+/**
+ * Constaté le 25/10/2026 : sans cookie, le User-Agent Chrome complet reçoit
+ * souvent un 429 (filtre anti-robot) et l'en-tête `Accept: application/json`
+ * un 400, alors qu'un User-Agent minimal passe. On n'envoie donc que celui-ci.
+ */
+const CHART_USER_AGENT = 'Mozilla/5.0';
+/** Cooldown propre au chart : un 429 ici ne doit pas couper les données analystes. */
+const CHART_COOLDOWN_KEY = 'yahoo:chart:cooldown';
+const CHART_COOLDOWN_SEC = 60;
+/** Jours calendaires couverts par une bougie, avec marge pour week-ends et fériés. */
+const DAYS_PER_BAR: Record<Resolution, number> = { D: 1.6, W: 7.2, M: 31 };
+
+/**
+ * Sous-unités cotées par Yahoo (pence à Londres, cents à Johannesburg, agorot
+ * à Tel-Aviv) : on renvoie l'unité principale, sinon un prix de 638 « GBP »
+ * serait 100 fois trop élevé.
+ */
+const MINOR_UNITS: Record<string, { currency: string; divisor: number }> = {
+  GBp: { currency: 'GBP', divisor: 100 },
+  GBX: { currency: 'GBP', divisor: 100 },
+  ZAc: { currency: 'ZAR', divisor: 100 },
+  ILA: { currency: 'ILS', divisor: 100 },
+};
+
+async function chart(symbol: string, resolution: Resolution, bars: number): Promise<YahooChart | null> {
+  let cooling = false;
+  try {
+    cooling = Boolean(await redis.get(CHART_COOLDOWN_KEY));
+  } catch {
+    /* Redis indisponible : on tente l'appel */
+  }
+  // Panne temporaire, pas une absence de donnée : on lève pour que rien de
+  // vide ne soit mis en cache.
+  if (cooling) throw new ProviderError('Yahoo : en pause après un 429', 503, 'Yahoo');
+
+  const period2 = Math.floor(Date.now() / 1000);
+  const period1 = period2 - Math.ceil(bars * DAYS_PER_BAR[resolution] + 7) * 86_400;
+
+  let res;
+  try {
+    res = await limited(() =>
+      axios.get<YahooChartResponse>(
+        `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(toYahooSymbol(symbol))}`,
+        {
+          headers: { 'User-Agent': CHART_USER_AGENT },
+          params: { interval: INTERVAL[resolution], period1, period2 },
+          validateStatus: () => true,
+          httpsAgent,
+          timeout: DEFAULT_TIMEOUT_MS,
+        },
+      ),
+    );
+  } catch (e) {
+    throw new ProviderError(`Yahoo : ${(e as Error).message}`, 502, 'Yahoo');
+  }
+
+  if (res.status === 429) {
+    try {
+      await redis.setex(CHART_COOLDOWN_KEY, CHART_COOLDOWN_SEC, '1');
+    } catch {
+      /* swallow */
+    }
+    throw new ProviderError('Yahoo : trop de requêtes (429)', 503, 'Yahoo');
+  }
+  if (res.status === 404) return null;
+  if (res.status >= 400) throw new ProviderError(`Yahoo HTTP ${res.status}`, 502, 'Yahoo');
+
+  const result = res.data?.chart?.result?.[0];
+  const price = result?.meta.regularMarketPrice;
+  if (!result || typeof price !== 'number' || !(price > 0)) return null;
+
+  const unit = MINOR_UNITS[result.meta.currency ?? ''];
+  const currency = unit?.currency ?? result.meta.currency ?? 'USD';
+  const div = unit?.divisor ?? 1;
+
+  const q = result.indicators.quote[0] ?? {};
+  const ts = result.timestamp ?? [];
+  const candle: Candle = { c: [], h: [], l: [], o: [], t: [], v: [], s: 'ok' };
+  for (let i = 0; i < ts.length; i++) {
+    const [o, h, l, c] = [q.open?.[i], q.high?.[i], q.low?.[i], q.close?.[i]];
+    // Bougie vide (jour férié, suspension) : ignorée plutôt que comblée.
+    if (o == null || h == null || l == null || c == null || !(c > 0)) continue;
+    candle.o.push(o / div);
+    candle.h.push(h / div);
+    candle.l.push(l / div);
+    candle.c.push(c / div);
+    candle.v.push(q.volume?.[i] ?? 0); // volume non utilisé dans les calculs
+    candle.t.push(ts[i]);
+  }
+  const start = Math.max(0, candle.c.length - bars);
+  for (const k of ['c', 'h', 'l', 'o', 't', 'v'] as const) candle[k] = candle[k].slice(start);
+  if (candle.c.length === 0) candle.s = 'no_data';
+
+  return {
+    candle,
+    quote: {
+      c: price / div,
+      dp: typeof result.meta.regularMarketChangePercent === 'number' ? result.meta.regularMarketChangePercent : null,
+      t: result.meta.regularMarketTime ?? period2,
+    },
+    currency,
+  };
+}
+
 export const yahoo = {
+  chart,
+
   recommendations: async (symbol: string): Promise<RecommendationTrend[] | null> => {
     const data = await quoteSummary(symbol, 'recommendationTrend');
     const trend = data?.quoteSummary.result?.[0]?.recommendationTrend?.trend;

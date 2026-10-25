@@ -1,0 +1,78 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": {
+          "currency": "EUR",
+          "symbol": "MC.PA",
+          "exchangeName": "PAR",
+          "regularMarketPrice": 383.0,
+          "regularMarketChangePercent": -1.238,
+          "regularMarketTime": 1792769703,
+          "chartPreviousClose": 380.9,
+          "dataGranularity": "1d"
+        },
+        "timestamp": [
+          1792393200,
+          1792479600,
+          1792566000,
+          1792652400,
+          1792738800
+        ],
+        "indicators": {
+          "quote": [
+            {
+              "open": [
+                389.8,
+                393.1,
+                null,
+                387.45,
+                387.2
+              ],
+              "high": [
+                391.35,
+                394.0,
+                null,
+                389.2,
+                388.2
+              ],
+              "low": [
+                385.925,
+                385.95,
+                null,
+                380.1,
+                380.05
+              ],
+              "close": [
+                390.0,
+                386.75,
+                null,
+                387.8,
+                383.0
+              ],
+              "volume": [
+                581343,
+                516321,
+                null,
+                561780,
+                794428
+              ]
+            }
+          ],
+          "adjclose": [
+            {
+              "adjclose": [
+                390.0,
+                386.75,
+                388.6,
+                387.8,
+                383.0
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "error": null
+  }
+}

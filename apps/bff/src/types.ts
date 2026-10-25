@@ -26,7 +26,22 @@ export interface CompanyProfile {
 export interface Candle {
   c: number[]; h: number[]; l: number[]; o: number[]; t: number[]; v: number[];
   s: 'ok' | 'no_data';
+  /** Devise ISO des prix, quand le provider la donne. */
+  currency?: string;
 }
+
+/** Cours normalisé, quelle que soit la source. */
+export interface MarketQuote {
+  c: number;
+  /** Variation du jour en % ; null si la source ne la donne pas. */
+  dp: number | null;
+  /** Horodatage du cours, en secondes. */
+  t: number;
+  currency: string;
+  source: 'finnhub' | 'yahoo';
+}
+
+export type MarketCandle = Candle & { currency: string; source: 'twelvedata' | 'yahoo' };
 
 export interface RecommendationTrend {
   buy: number; hold: number; sell: number;
