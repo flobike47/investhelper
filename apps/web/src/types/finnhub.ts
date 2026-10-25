@@ -1,12 +1,10 @@
+/** Cours normalisé renvoyé par le BFF (Finnhub pour les valeurs US, Yahoo ailleurs). */
 export interface Quote {
-  c: number;  // current price
-  d: number;  // change
-  dp: number; // percent change
-  h: number;  // high of the day
-  l: number;  // low of the day
-  o: number;  // open
-  pc: number; // previous close
-  t: number;  // unix timestamp
+  c: number;           // cours
+  dp: number | null;   // variation du jour en %
+  t: number;           // horodatage (secondes)
+  currency: string;
+  source: 'finnhub' | 'yahoo';
 }
 
 export interface CompanyProfile {
@@ -32,6 +30,7 @@ export interface Candle {
   t: number[]; // timestamp
   v: number[]; // volume
   s: 'ok' | 'no_data';
+  currency?: string;
 }
 
 export interface RecommendationTrend {

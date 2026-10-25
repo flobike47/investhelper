@@ -19,6 +19,12 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-25.2',
+    fixed: [
+      'Les actions européennes et internationales (Paris, Francfort, Zurich, Londres…) affichent enfin leur cours et leur graphique.',
+    ],
+  },
+  {
     id: '2026-10-25',
     fixed: [
       'En long terme, la tendance et l’historique comparable s’affichent enfin.',

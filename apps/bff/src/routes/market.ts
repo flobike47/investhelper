@@ -1,15 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import { cachedJson, TTL } from '../cache.js';
 import { finnhub } from '../providers/finnhub.js';
-import { twelvedata } from '../providers/twelvedata.js';
 import { fmp } from '../providers/fmp.js';
 import { yahoo } from '../providers/yahoo.js';
+import * as marketData from '../marketData.js';
 import { clampInt, validateEnum, validateString, validateSymbol } from '../validation.js';
 
 export async function registerMarketRoutes(app: FastifyInstance) {
   app.get<{ Params: { symbol: string } }>('/quote/:symbol', async (req) => {
     const s = validateSymbol(req.params.symbol);
-    return cachedJson(`quote:${s}`, TTL.quote, () => finnhub.quote(s));
+    return cachedJson(`quote:v2:${s}`, TTL.quote, () => marketData.quote(s, req.log));
   });
 
   app.get<{ Params: { symbol: string } }>('/profile/:symbol', async (req) => {
@@ -25,8 +25,9 @@ export async function registerMarketRoutes(app: FastifyInstance) {
     const resolution = validateEnum(req.query.resolution, ['D', 'W', 'M'] as const, 'D');
     const lookbackDays = clampInt(req.query.lookbackDays, 365, 30, 3650); // 1 mois → 10 ans
     const ttl = resolution === 'D' ? TTL.candlesDaily : TTL.candlesWeekly;
-    return cachedJson(`candles:${s}:${resolution}:${lookbackDays}`, ttl, () =>
-      twelvedata.candles(s, resolution, lookbackDays),
+    // v2 : réponses enrichies de la devise et de la source (repli Yahoo hors US).
+    return cachedJson(`candles:v2:${s}:${resolution}:${lookbackDays}`, ttl, () =>
+      marketData.candles(s, resolution, lookbackDays, req.log),
     );
   });
 
