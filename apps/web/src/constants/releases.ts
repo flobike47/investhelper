@@ -19,6 +19,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-25',
+    fixed: [
+      'En long terme, la tendance et l’historique comparable s’affichent enfin.',
+      'Le stop proposé est toujours sous le cours, et la zone d’entrée n’apparaît plus quand le signal est baissier.',
+      'Quand il n’y a pas assez d’actualités sur une action, la fiche l’indique au lieu d’afficher « Neutre ».',
+    ],
+    improved: [
+      'Le plan de chaque action propose un stop et un objectif adaptés à sa volatilité, avec le rapport gain/risque.',
+      'L’historique comparable précise s’il repose sur trop peu de cas et le compare à l’évolution habituelle de l’action.',
+    ],
+  },
+  {
     id: '2026-10-23.6',
     fixed: ['Sur iPhone, plus aucun flou sous l’heure et la batterie. Pour en profiter : supprime l’app de l’écran d’accueil, puis ajoute-la à nouveau.'],
   },
