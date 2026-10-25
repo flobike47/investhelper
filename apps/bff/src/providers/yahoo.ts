@@ -194,13 +194,14 @@ export const yahoo = {
     const low = num(fd.targetLowPrice);
     const median = num(fd.targetMedianPrice);
     if (mean === null && high === null && low === null && median === null) return null;
+    // Champ absent → null : un objectif à 0 serait affiché comme une vraie valeur.
     return {
       symbol,
       lastUpdated: '',
-      targetHigh: high ?? mean ?? 0,
-      targetLow: low ?? mean ?? 0,
-      targetMean: mean ?? median ?? 0,
-      targetMedian: median ?? mean ?? 0,
+      targetHigh: high,
+      targetLow: low,
+      targetMean: mean ?? median,
+      targetMedian: median ?? mean,
     };
   },
 

@@ -282,18 +282,27 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
             </span>
           </div>
           <div style={{ padding: '14px 16px', borderTop: divider, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 15, fontWeight: 600 }}>Analogue historique</span>
-              <span className="tabular-nums" style={{ fontSize: 15, fontWeight: 650 }}>
-                {analog && analog.occurrences > 0 && analog.medianReturn !== null
-                  ? `${formatSignedPct(analog.medianReturn * 100, 1)} médian`
-                  : '—'}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {analog && analog.occurrences > 0 && !analog.significant && (
+                  <Tag style={{ marginInlineEnd: 0 }}>Peu significatif</Tag>
+                )}
+                <span className="tabular-nums" style={{ fontSize: 15, fontWeight: 650 }}>
+                  {analog && analog.occurrences > 0 && analog.medianReturn !== null
+                    ? `${formatSignedPct(analog.medianReturn * 100, 1)} médian`
+                    : '—'}
+                </span>
               </span>
             </div>
             <span className="tabular-nums" style={{ fontSize: 13, color: token.colorTextSecondary, lineHeight: 1.4 }}>
               {analog && analog.occurrences > 0
                 ? `Sur ${analog.horizonBars} ${cfg.barUnit}s après un RSI comparable · ${analog.occurrences} cas${
                     analog.positiveRatio !== null ? ` · ${(analog.positiveRatio * 100).toFixed(0)}\u202f% positifs` : ''
+                  }${
+                    analog.baselineMedian !== null
+                      ? `, contre ${formatSignedPct(analog.baselineMedian * 100, 1)} habituellement sur la même durée`
+                      : ''
                   }. Statistique du passé, pas une prévision.`
                 : "Pas assez d'occurrences historiques comparables."}
             </span>

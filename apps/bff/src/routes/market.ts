@@ -43,7 +43,8 @@ export async function registerMarketRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { symbol: string } }>('/price-target/:symbol', async (req) => {
     const s = validateSymbol(req.params.symbol);
-    return cachedJson(`target:${s}`, TTL.priceTarget, async () => {
+    // v2 : les anciennes entrées pouvaient contenir des objectifs à 0 inventés.
+    return cachedJson(`target:v2:${s}`, TTL.priceTarget, async () => {
       return (
         (await yahoo.priceTarget(s)) ??
         (await fmp.priceTarget(s)) ??

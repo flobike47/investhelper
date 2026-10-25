@@ -62,6 +62,14 @@ export function analogBarsFor(h: Horizon): number {
   return h === 'short' ? 21 : h === 'medium' ? 63 : 52;
 }
 
+/**
+ * En dessous de ce nombre de cas, un analogue historique est affiché comme
+ * « peu significatif » : avec moins de 8 observations, une médiane et un taux
+ * de cas positifs varient trop d'un échantillon à l'autre pour être lus comme
+ * une tendance.
+ */
+export const MIN_ANALOG_SAMPLE = 8;
+
 /** Libellé d'une moyenne mobile selon l'unité des bougies : « SMA20 » ou « SMA10 sem. ». */
 export function smaLabel(period: number, h: HorizonConfig): string {
   return h.barUnit === 'semaine' ? `SMA${period} sem.` : `SMA${period}`;

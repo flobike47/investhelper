@@ -112,8 +112,9 @@ async function del<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export interface TickerSentiment {
-  sentiment: 'positive' | 'negative' | 'neutral' | 'mixed';
-  score: number;
+  /** `unknown` = pas assez d'actualités pour analyser (ce n'est pas un sentiment neutre). */
+  sentiment: 'positive' | 'negative' | 'neutral' | 'mixed' | 'unknown';
+  score: number | null;
   drivers: string[];
   summary: string;
 }

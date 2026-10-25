@@ -11,8 +11,9 @@ const MARKET_QUERY_FR =
   'bourse OR CAC40 OR Euronext OR action OR ETF OR investissement OR "marché financier" OR BCE OR Fed';
 
 interface TickerSentiment {
-  sentiment: 'positive' | 'negative' | 'neutral' | 'mixed';
-  score: number;
+  /** `unknown` = pas assez d'actualités pour analyser : ce n'est pas un sentiment neutre. */
+  sentiment: 'positive' | 'negative' | 'neutral' | 'mixed' | 'unknown';
+  score: number | null;
   drivers: string[];
   summary: string;
 }
@@ -30,22 +31,25 @@ export async function registerAnalysisRoutes(app: FastifyInstance) {
   app.get<{ Params: { symbol: string } }>('/analysis/sentiment/:symbol', async (req) => {
     const user = requireUser(req);
     const s = validateSymbol(req.params.symbol);
-    return cachedJson<TickerSentiment>(`sentiment:${s}`, TTL.sentiment, async () => {
-      await enforceQuota(user.id, 'sentiment');
+    // v2 : les anciennes entrées présentaient l'absence d'actualité comme « neutral ».
+    return cachedJson<TickerSentiment>(`sentiment:v2:${s}`, TTL.sentiment, async () => {
       const to = new Date();
       const from = new Date(to);
       from.setDate(from.getDate() - 14);
       const iso = (d: Date) => d.toISOString().slice(0, 10);
       const news = (await finnhub.companyNews(s, iso(from), iso(to))) ?? [];
 
+      // Pas d'actualité (ou endpoint réservé au plan payant pour ce marché) :
+      // on le dit, sans appeler Gemini ni décompter le quota.
       if (news.length === 0) {
         return {
-          sentiment: 'neutral',
-          score: 0,
+          sentiment: 'unknown',
+          score: null,
           drivers: [],
-          summary: 'Aucune actualité récente disponible.',
+          summary: "Pas assez d'actualités récentes pour une analyse.",
         };
       }
+      await enforceQuota(user.id, 'sentiment');
       const headlines = news.slice(0, 20).map((n, i) => `${i + 1}. ${n.headline}`).join('\n');
       return gemini.json<TickerSentiment>(
         "Tu es un analyste financier rigoureux. Tu rends UNIQUEMENT un objet JSON valide, " +
