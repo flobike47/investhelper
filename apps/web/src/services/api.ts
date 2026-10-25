@@ -6,7 +6,7 @@ import type {
   SymbolSearchResult,
 } from '@/types/finnhub';
 import type { NewsApiResponse } from '@/types/news';
-import type { SignalDetailForUser, SignalRow } from '@/types/signals';
+import type { Ideas, SignalDetailForUser, SignalRow } from '@/types/signals';
 import type { Horizon } from '@/constants/horizons';
 import type { PushTestReport } from '@/lib/push';
 
@@ -224,8 +224,11 @@ export const api = {
   tickerSentiment: (symbol: string) =>
     get<TickerSentiment>(`/analysis/sentiment/${encodeURIComponent(symbol)}`),
 
-  marketThemes: (sectors: string[]) =>
-    get<MarketThemes>('/analysis/themes', { sectors: sectors.join(',') }),
+  /** Thèmes de l'actualité, sur tous les secteurs de l'univers (défini par le BFF). */
+  marketThemes: () => get<MarketThemes>('/analysis/themes'),
+
+  /** Idées du moment, classées par le BFF (thèmes × signaux). */
+  ideas: (horizon: Horizon) => get<Ideas>('/ideas', { horizon }),
 
   podcastScript: (categories: string[], targetMinutes: number | 'auto' = 'auto') =>
     post<PodcastScriptResult>('/podcast/script', { categories, targetMinutes }, GENERATION_TIMEOUT_MS),
