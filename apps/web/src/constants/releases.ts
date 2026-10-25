@@ -23,6 +23,7 @@ export const RELEASES: Release[] = [
     fixed: [
       'Les actions européennes et internationales (Paris, Francfort, Zurich, Londres…) affichent enfin leur cours et leur graphique.',
     ],
+    added: ['La fiche prévient quand des résultats tombent pendant la durée de détention du plan.'],
     improved: ['La watchlist et les idées se chargent plus vite.'],
   },
   {
