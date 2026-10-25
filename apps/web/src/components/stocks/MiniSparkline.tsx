@@ -1,5 +1,4 @@
 import { theme } from 'antd';
-import type { Candle } from '@/types/finnhub';
 import { downsample, sparkPath } from '@/lib/sparkline';
 
 /**
@@ -7,16 +6,16 @@ import { downsample, sparkPath } from '@/lib/sparkline';
  * Le sens est porté par le texte voisin (variation signée) : aria-hidden.
  */
 export function MiniSparkline({
-  candle,
+  closes,
   width = 64,
   height = 28,
 }: {
-  candle: Candle | null | undefined;
+  /** Clôtures de l'horizon (devise native), calculées par le BFF. */
+  closes: number[];
   width?: number;
   height?: number;
 }) {
   const { token } = theme.useToken();
-  const closes = candle && candle.s === 'ok' ? candle.c : [];
   const path = sparkPath(downsample(closes, 40), width, height);
   if (!path) return <span aria-hidden style={{ width, height, display: 'inline-block' }} />;
   const up = closes[closes.length - 1] >= closes[0];

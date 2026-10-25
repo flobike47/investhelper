@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atr, lastDefined, rsi, sma } from './indicators';
+import { atr, lastDefined, rsi, sma } from '../../src/finance/indicators.js';
 
 describe('sma', () => {
   it('calcule la moyenne glissante et laisse null avant la première fenêtre complète', () => {

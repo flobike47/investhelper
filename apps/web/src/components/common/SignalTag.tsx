@@ -1,5 +1,5 @@
 import { Tag } from 'antd';
-import type { Signal } from '@/lib/scoring';
+import type { Signal } from '@/types/signals';
 
 // Libellés d'indicateur, pas d'injonction : l'app ne donne pas de conseil
 // en investissement, elle résume ce que disent les signaux techniques.

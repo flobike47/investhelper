@@ -1,6 +1,5 @@
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { theme } from 'antd';
-import type { Candle } from '@/types/finnhub';
 import { formatSignedPct } from '@/lib/format';
 import dayjs from 'dayjs';
 
@@ -10,18 +9,19 @@ const priceFormatter = new Intl.NumberFormat('fr-FR', {
 });
 
 export function PriceSparkline({
-  candle,
+  series,
   height = 60,
   color,
 }: {
-  candle: Candle | null | undefined;
+  /** Historique de l'horizon (timestamps en secondes, clôtures en devise native). */
+  series: { t: number[]; c: number[] } | null | undefined;
   height?: number;
   /** Couleur de tendance haussière ; par défaut `colorSuccess` du thème. */
   color?: string;
 }) {
   const { token } = theme.useToken();
 
-  if (!candle || candle.s !== 'ok' || !candle.c?.length) {
+  if (!series || !series.c.length) {
     return (
       <div
         style={{
@@ -39,19 +39,19 @@ export function PriceSparkline({
 
   // Date format adapté à la durée affichée
   const spanDays =
-    candle.t.length > 1
-      ? (candle.t[candle.t.length - 1] - candle.t[0]) / 86400
+    series.t.length > 1
+      ? (series.t[series.t.length - 1] - series.t[0]) / 86400
       : 0;
   const dateFormat = spanDays > 365 * 2 ? 'MMM YY' : 'DD MMM';
   const tooltipFormat = spanDays > 365 ? 'DD MMM YYYY' : 'DD MMM';
 
-  const data = candle.t.map((t, i) => ({
+  const data = series.t.map((t, i) => ({
     date: dayjs.unix(t).format(dateFormat),
     fullDate: dayjs.unix(t).format(tooltipFormat),
-    price: candle.c[i],
+    price: series.c[i],
   }));
-  const first = candle.c[0];
-  const last = candle.c[candle.c.length - 1];
+  const first = series.c[0];
+  const last = series.c[series.c.length - 1];
   const up = last >= first;
   const trendColor = up ? (color ?? token.colorSuccess) : token.colorError;
   const periodChangePct = first > 0 ? ((last - first) / first) * 100 : null;

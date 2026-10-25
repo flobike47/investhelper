@@ -12,6 +12,7 @@ import { registerFxRoutes } from './routes/fx.js';
 import { registerUserRoutes } from './routes/user.js';
 import { registerShareRoutes } from './routes/share.js';
 import { registerPushRoutes } from './routes/push.js';
+import { registerSignalRoutes } from './routes/signals.js';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
@@ -133,6 +134,7 @@ export async function buildServer() {
   app.get('/health', async () => ({ ok: true, ts: Date.now() }));
 
   await app.register(registerMarketRoutes, { prefix: '/api' });
+  await app.register(registerSignalRoutes, { prefix: '/api' });
   await app.register(registerNewsRoutes, { prefix: '/api' });
   await app.register(registerAnalysisRoutes, { prefix: '/api' });
   await app.register(registerPodcastRoutes, { prefix: '/api' });

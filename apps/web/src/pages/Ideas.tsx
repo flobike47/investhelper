@@ -102,7 +102,6 @@ export default function Ideas() {
                 <li key={p.ticker.symbol} style={{ borderTop: i === 0 ? undefined : `1px solid ${token.colorBorderSecondary}` }}>
                   <AssetRow
                     data={p.ticker}
-                    horizon={horizon}
                     to={`/ideas/asset/${encodeURIComponent(p.ticker.symbol)}`}
                     selected={p.ticker.symbol === selected}
                     label={[`${i + 1}. ${p.entry.name}`, p.themes[0]].filter(Boolean).join(' · ')}

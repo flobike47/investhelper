@@ -1,6 +1,6 @@
-import type { Candle, RecommendationTrend, PriceTarget } from '@/types/finnhub';
-import { lastDefined, rsi, sma } from './indicators';
-import { smaLabel, type HorizonConfig } from '@/constants/horizons';
+import type { Candle, RecommendationTrend, PriceTarget } from '../types.js';
+import { lastDefined, rsi, sma } from './indicators.js';
+import { smaLabel, type HorizonConfig } from './horizons.js';
 
 export type Signal = 'buy' | 'hold' | 'sell' | 'unknown';
 
