@@ -7,14 +7,16 @@
  * de chargement ou « — », jamais un chiffre plausible mais faux.
  */
 
-import type { Signal } from './scoring';
+import type { Money, Signal } from '@/types/signals';
 
-/** Sous-ensemble d'`AnalyzedTicker` utile aux agrégats (évite d'importer le hook). */
+/** Sous-ensemble d'un `TickerView` utile aux agrégats (évite d'importer le hook). */
 export interface TickerSnapshot {
   loading: boolean;
   error: Error | null;
   changePct: number | null;
-  score: { signal: Signal } | null;
+  /** Score calculé par le BFF ; null sans historique de cours. */
+  score: number | null;
+  signal: Signal;
 }
 
 export type TickerStatus = 'loading' | 'error' | 'partial' | 'ok';
@@ -26,10 +28,11 @@ export type TickerStatus = 'loading' | 'error' | 'partial' | 'ok';
  *  - `partial` : une requête a échoué mais une partie des données est affichable ;
  *  - `ok`      : tout est arrivé sans erreur.
  */
-export function tickerStatus(t: TickerSnapshot & { price: number | null }): TickerStatus {
+export function tickerStatus(t: TickerSnapshot & { price: Money | null }): TickerStatus {
   if (t.loading) return 'loading';
   if (!t.error) return 'ok';
-  const hasSomething = t.score !== null || (t.price !== null && Number.isFinite(t.price));
+  const native = t.price?.native ?? null;
+  const hasSomething = t.score !== null || (native !== null && Number.isFinite(native));
   return hasSomething ? 'partial' : 'error';
 }
 
@@ -88,7 +91,7 @@ export function summarizeWatchlist(tickers: readonly TickerSnapshot[]): Watchlis
     avgChangePct: averageOfAvailable(changes),
     changeSampleSize: changes.length,
     scoredCount: scored.length,
-    buyCount: scored.filter((t) => t.score?.signal === 'buy').length,
+    buyCount: scored.filter((t) => t.signal === 'buy').length,
     pendingCount: tickers.filter((t) => t.loading).length,
     errorCount: tickers.filter((t) => t.error !== null).length,
   };

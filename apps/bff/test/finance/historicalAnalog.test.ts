@@ -1,8 +1,7 @@
-// @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { findRsiAnalog, pickBucketFromRsi } from './historicalAnalog';
-import { candleOf, linear, segments } from './testSeries';
-import { MIN_ANALOG_SAMPLE, analogBarsFor } from '@/constants/horizons';
+import { findRsiAnalog, pickBucketFromRsi } from '../../src/finance/historicalAnalog.js';
+import { candleOf, linear, segments } from './testSeries.js';
+import { MIN_ANALOG_SAMPLE, analogBarsFor } from '../../src/finance/horizons.js';
 
 /** Deux épisodes de survente bien séparés, chacun suivi d'une reprise. */
 const TWO_DIPS = segments(100, [

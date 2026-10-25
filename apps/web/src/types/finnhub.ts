@@ -1,12 +1,3 @@
-/** Cours normalisé renvoyé par le BFF (Finnhub pour les valeurs US, Yahoo ailleurs). */
-export interface Quote {
-  c: number;           // cours
-  dp: number | null;   // variation du jour en %
-  t: number;           // horodatage (secondes)
-  currency: string;
-  source: 'finnhub' | 'yahoo';
-}
-
 export interface CompanyProfile {
   country: string;
   currency: string;
@@ -20,37 +11,6 @@ export interface CompanyProfile {
   phone: string;
   weburl: string;
   finnhubIndustry: string;
-}
-
-export interface Candle {
-  c: number[]; // close
-  h: number[]; // high
-  l: number[]; // low
-  o: number[]; // open
-  t: number[]; // timestamp
-  v: number[]; // volume
-  s: 'ok' | 'no_data';
-  currency?: string;
-}
-
-export interface RecommendationTrend {
-  buy: number;
-  hold: number;
-  period: string;
-  sell: number;
-  strongBuy: number;
-  strongSell: number;
-  symbol: string;
-}
-
-export interface PriceTarget {
-  lastUpdated: string;
-  symbol: string;
-  /** null quand le provider ne fournit pas la valeur (jamais 0 par défaut). */
-  targetHigh: number | null;
-  targetLow: number | null;
-  targetMean: number | null;
-  targetMedian: number | null;
 }
 
 export interface CompanyNewsItem {

@@ -1,16 +1,14 @@
 import axios, { type AxiosInstance } from 'axios';
 import { runtimeConfig } from '@/lib/runtimeConfig';
 import type {
-  Quote,
   CompanyProfile,
-  Candle,
-  RecommendationTrend,
-  PriceTarget,
   CompanyNewsItem,
   SymbolSearchResult,
   EarningsEvent,
 } from '@/types/finnhub';
 import type { NewsApiResponse } from '@/types/news';
+import type { SignalDetail, SignalRow } from '@/types/signals';
+import type { Horizon } from '@/constants/horizons';
 import type { PushTestReport } from '@/lib/push';
 
 /**
@@ -178,18 +176,15 @@ export interface ShareInfo {
 }
 
 export const api = {
-  quote: (symbol: string) => get<Quote>(`/quote/${encodeURIComponent(symbol)}`),
-
   profile: (symbol: string) => get<CompanyProfile>(`/profile/${encodeURIComponent(symbol)}`),
 
-  candles: (symbol: string, resolution: 'D' | 'W' | 'M', lookbackDays: number) =>
-    get<Candle>(`/candles/${encodeURIComponent(symbol)}`, { resolution, lookbackDays }),
+  /** Fiche complète calculée par le BFF (signal, plan, analogue, playbook). */
+  signal: (symbol: string, horizon: Horizon) =>
+    get<SignalDetail>(`/signals/${encodeURIComponent(symbol)}`, { horizon }),
 
-  recommendations: (symbol: string) =>
-    get<RecommendationTrend[] | null>(`/recommendations/${encodeURIComponent(symbol)}`),
-
-  priceTarget: (symbol: string) =>
-    get<PriceTarget | null>(`/price-target/${encodeURIComponent(symbol)}`),
+  /** Lignes de liste, 30 symboles au plus par appel (voir MAX_SIGNALS_PER_CALL). */
+  signals: (symbols: string[], horizon: Horizon) =>
+    get<SignalRow[]>('/signals', { symbols: symbols.join(','), horizon }),
 
   nextEarnings: (symbol: string) =>
     get<EarningsEvent | null>(`/earnings/${encodeURIComponent(symbol)}`),
@@ -205,8 +200,6 @@ export const api = {
 
   /** `signal` : annule la requête HTTP quand la saisie change (TanStack Query le fournit). */
   search: (q: string, signal?: AbortSignal) => get<SymbolSearchResult>('/search', { q }, signal),
-
-  fxRates: () => get<Record<string, number>>('/fx'),
 
   tickerSentiment: (symbol: string) =>
     get<TickerSentiment>(`/analysis/sentiment/${encodeURIComponent(symbol)}`),

@@ -2,19 +2,15 @@ import type { ReactNode } from 'react';
 import { App as AntApp, Alert, Button, Collapse, Skeleton, Tag, theme } from 'antd';
 import { CloseOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useAnalyzedTickers, useCandles, useCompanyNews, useProfile } from '@/hooks/useStockData';
+import { useCompanyNews, useProfile } from '@/hooks/useStockData';
+import { useSignal } from '@/hooks/useSignals';
 import { useTickerSentiment } from '@/hooks/useNewsAnalysis';
 import { useNextEarnings } from '@/hooks/useEarnings';
-import { useFxRates } from '@/hooks/useFx';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useUserSettings } from '@/hooks/useUserSettings';
-import { HORIZONS, analogBarsFor } from '@/constants/horizons';
+import { HORIZONS } from '@/constants/horizons';
 import { findInUniverse } from '@/constants/universe';
-import { lastDefined, rsi } from '@/lib/indicators';
-import { findRsiAnalog, pickBucketFromRsi } from '@/lib/historicalAnalog';
-import { buildPlaybook } from '@/lib/playbook';
-import { buildTradeLevels } from '@/lib/tradePlan';
-import { convertToEur, formatEur, formatNative, inferCurrency, priceToEur } from '@/lib/currency';
+import { formatMoney, formatNative } from '@/lib/currency';
 import { formatSignedPct } from '@/lib/format';
 import { describeError } from '@/lib/watchlistSummary';
 import { SignalTag } from '@/components/common/SignalTag';
@@ -53,43 +49,24 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
   const { modal } = AntApp.useApp();
   const { horizon } = useUserSettings();
   const cfg = HORIZONS[horizon];
-  const [ticker] = useAnalyzedTickers([symbol], cfg);
-  const { data: candle } = useCandles(symbol, cfg);
+  // Tout est calculé par le BFF : la fiche ne fait qu'afficher.
+  const detail = useSignal(symbol, horizon);
+  const d = detail.data;
   const { data: news } = useCompanyNews(symbol, 14);
   const profile = useProfile(symbol);
   const sentiment = useTickerSentiment(symbol);
   const earnings = useNextEarnings(symbol);
-  const { data: rates } = useFxRates();
   const watchlist = useWatchlist();
 
   const name = findInUniverse(symbol)?.name ?? profile.data?.name;
-  const currency = inferCurrency(symbol);
-  const toEur = (v: number | null | undefined) => convertToEur(v, currency, rates);
-  const score = ticker.score;
+  const currency = d?.currency ?? null;
   const inWatchlist = watchlist.tickers.includes(symbol);
-
-  const currentRsi = candle && candle.s === 'ok' ? lastDefined(rsi(candle.c, cfg.rsiPeriod)) : null;
-  const analog = findRsiAnalog(candle, {
-    rsiBucket: pickBucketFromRsi(currentRsi),
-    horizonBars: analogBarsFor(horizon),
-    rsiPeriod: cfg.rsiPeriod,
-  });
-  // Niveaux en devise native, calculés sur le signal combiné affiché.
-  const levels = buildTradeLevels({
-    candle,
-    signal: score?.signal ?? 'unknown',
-    horizon: cfg,
-    smaShort: score?.technical.smaShort ?? null,
-    targetMean: score?.analyst.targetMean ?? null,
-  });
-  const playbook = buildPlaybook({
-    horizon,
-    entry: toEur(levels.entry),
-    stop: toEur(levels.stop),
-    target: toEur(levels.target),
-    smaShort: toEur(score?.technical.smaShort ?? null),
-    smaLong: toEur(score?.technical.smaLong ?? null),
-  });
+  const analog = d?.analog ?? null;
+  const levels = d?.levels;
+  const playbook = d?.playbook;
+  const fatalError =
+    (detail.error as Error | null) ??
+    (d && d.price.native === null && d.score === null && d.errors.length > 0 ? new Error(d.errors.join(' · ')) : null);
 
   const confirmRemove = () =>
     modal.confirm({
@@ -114,7 +91,7 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
             {symbol}
           </h2>
           <span style={{ fontSize: 13, color: token.colorTextSecondary }}>
-            {[name, currency !== 'EUR' ? `coté en ${currency}` : null].filter(Boolean).join(' · ') || ' '}
+            {[name, currency && currency !== 'EUR' ? `coté en ${currency}` : null].filter(Boolean).join(' · ') || ' '}
           </span>
         </div>
         <Button
@@ -127,31 +104,31 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
         />
       </header>
 
-      {ticker.error && !ticker.loading && ticker.price === null && (
-        <Alert type="error" showIcon message="Données indisponibles" description={describeError(ticker.error)} />
+      {fatalError && (
+        <Alert type="error" showIcon message="Données indisponibles" description={describeError(fatalError)} />
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {ticker.loading ? (
+        {detail.isLoading ? (
           <Skeleton.Input active size="large" style={{ width: 200 }} />
         ) : (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <span className="tabular-nums" style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.025em' }}>
-              {priceToEur(ticker.price, symbol, rates)}
+              {formatMoney(d?.price, currency)}
             </span>
-            <ChangeIndicator pct={ticker.changePct} fontSize={15} />
+            <ChangeIndicator pct={d?.changePct ?? null} fontSize={15} />
             <span style={{ fontSize: 13, color: token.colorTextSecondary }}>aujourd'hui</span>
           </div>
         )}
-        {currency !== 'EUR' && ticker.price !== null && (
+        {currency && currency !== 'EUR' && d?.price.native != null && d.price.eur !== null && (
           <span className="tabular-nums" style={{ fontSize: 13, color: token.colorTextSecondary }}>
-            soit {formatNative(ticker.price, currency)} · converti au taux du jour
+            soit {formatNative(d.price.native, currency)} · converti au taux du jour
           </span>
         )}
       </div>
 
       <figure style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <PriceSparkline candle={candle} height={160} />
+        <PriceSparkline series={d?.chart} height={160} />
         <figcaption style={{ fontSize: 12, color: token.colorTextTertiary }}>
           Historique utilisé pour l'horizon {cfg.label.toLowerCase()}
         </figcaption>
@@ -162,16 +139,16 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
           <span style={{ fontSize: 12, fontWeight: 600, color: token.colorTextSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Signal · {cfg.label.toLowerCase()}
           </span>
-          {score ? <SignalTag signal={score.signal} /> : <Skeleton.Button active size="small" />}
+          {d ? <SignalTag signal={d.signal} /> : <Skeleton.Button active size="small" />}
         </div>
-        {score && (
+        {d && d.score !== null && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: token.colorTextSecondary }}>
                 <span>Baissier</span>
                 <span className="tabular-nums" style={{ color: token.colorText, fontWeight: 650 }}>
-                  Score {score.score > 0 ? '+' : ''}
-                  {score.score}
+                  Score {d.score > 0 ? '+' : ''}
+                  {d.score}
                 </span>
                 <span>Haussier</span>
               </div>
@@ -180,7 +157,7 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
                 aria-label="Score combiné"
                 aria-valuemin={-100}
                 aria-valuemax={100}
-                aria-valuenow={score.score}
+                aria-valuenow={d.score}
                 style={{
                   position: 'relative',
                   height: 6,
@@ -192,7 +169,7 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
                   style={{
                     position: 'absolute',
                     top: -4,
-                    left: `${(score.score + 100) / 2}%`,
+                    left: `${(d.score + 100) / 2}%`,
                     width: 14,
                     height: 14,
                     borderRadius: 7,
@@ -204,13 +181,13 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
               </div>
             </div>
             <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 15, lineHeight: 1.4 }}>
-              {score.technical.rationale.map((r) => (
+              {d.technical.rationale.map((r) => (
                 <li key={r}>{r}</li>
               ))}
-              {score.analyst.totalAnalysts > 0 && (
+              {d.analyst.totalAnalysts > 0 && (
                 <li className="tabular-nums">
-                  {(score.analyst.buyRatio * 100).toFixed(0)}&#8239;% des {score.analyst.totalAnalysts} analystes à l'achat
-                  {score.analyst.targetMean !== null && `, objectif moyen ${formatEur(toEur(score.analyst.targetMean))}`}.
+                  {(d.analyst.buyRatio * 100).toFixed(0)}&#8239;% des {d.analyst.totalAnalysts} analystes à l'achat
+                  {d.analyst.targetMean.native !== null && `, objectif moyen ${formatMoney(d.analyst.targetMean, currency)}`}.
                 </li>
               )}
             </ul>
@@ -223,23 +200,23 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
           <SectionTitle>
             <span id="asset-plan">Plan conditionnel</span>
           </SectionTitle>
-          <span style={{ fontSize: 13, color: token.colorTextSecondary }}>Détention typique : {playbook.holdingPeriod}</span>
+          <span style={{ fontSize: 13, color: token.colorTextSecondary }}>Détention typique : {playbook?.holdingPeriod ?? '—'}</span>
         </div>
-        {score?.signal === 'sell' && (
+        {d?.signal === 'sell' && (
           <p style={{ margin: 0, fontSize: 14, color: token.colorTextSecondary }}>
             Pas de zone d'entrée sur un signal baissier.
           </p>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-          <Tile label="Zone d'entrée" value={priceToEur(levels.entry, symbol, rates)} />
-          {cfg.atrStopMultiple === null ? (
+          <Tile label="Zone d'entrée" value={formatMoney(levels?.entry, currency)} />
+          {levels && !levels.stopApplies ? (
             <Tile label="Sortie" value="Sur thèse" />
           ) : (
-            <Tile label="Stop technique" value={priceToEur(levels.stop, symbol, rates)} />
+            <Tile label="Stop technique" value={formatMoney(levels?.stop, currency)} />
           )}
-          <Tile label="Objectif" value={priceToEur(levels.target, symbol, rates)} />
+          <Tile label="Objectif" value={formatMoney(levels?.target, currency)} />
         </div>
-        {levels.riskReward !== null && (
+        {levels && levels.riskReward !== null && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
             <span className="tabular-nums">Gain/risque 1 : {formatRatio(levels.riskReward)}</span>
             {levels.unfavorable && (
@@ -249,27 +226,29 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
             )}
           </div>
         )}
-        <Collapse
-          ghost
-          size="small"
-          items={[
-            {
-              key: 'plan',
-              label: 'Détails du plan',
-              children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14, lineHeight: 1.45 }}>
-                  <p style={{ margin: 0 }}>{playbook.entryWindow}</p>
-                  <ul style={{ margin: 0, paddingLeft: 18 }}>
-                    {playbook.exitConditions.map((c) => (
-                      <li key={c}>{c}</li>
-                    ))}
-                  </ul>
-                  <p style={{ margin: 0, color: token.colorTextSecondary }}>{playbook.risk}</p>
-                </div>
-              ),
-            },
-          ]}
-        />
+        {playbook && (
+          <Collapse
+            ghost
+            size="small"
+            items={[
+              {
+                key: 'plan',
+                label: 'Détails du plan',
+                children: (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14, lineHeight: 1.45 }}>
+                    <p style={{ margin: 0 }}>{playbook.entryWindow}</p>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {playbook.exitConditions.map((c) => (
+                        <li key={c}>{c}</li>
+                      ))}
+                    </ul>
+                    <p style={{ margin: 0, color: token.colorTextSecondary }}>{playbook.risk}</p>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
       </section>
 
       <section aria-labelledby="asset-context" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -330,7 +309,7 @@ export function AssetDetail({ symbol, onClose }: { symbol: string; onClose: () =
             </div>
             <span className="tabular-nums" style={{ fontSize: 13, color: token.colorTextSecondary, lineHeight: 1.4 }}>
               {analog && analog.occurrences > 0
-                ? `Sur ${analog.horizonBars} ${cfg.barUnit}s après un RSI comparable · ${analog.occurrences} cas${
+                ? `Sur ${analog.horizonBars} ${d?.barUnit ?? 'séance'}s après un RSI comparable · ${analog.occurrences} cas${
                     analog.positiveRatio !== null ? ` · ${(analog.positiveRatio * 100).toFixed(0)}\u202f% positifs` : ''
                   }${
                     analog.baselineMedian !== null

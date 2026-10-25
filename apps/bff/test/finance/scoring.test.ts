@@ -1,10 +1,9 @@
-// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { analyzeTechnicals, combine, summarizeAnalysts, type AnalystSummary, type Signal, type TechnicalAnalysis } from './scoring';
-import { HORIZONS } from '@/constants/horizons';
-import type { RecommendationTrend } from '@/types/finnhub';
-import { BOUNCE_IN_DOWNTREND, PULLBACK_IN_UPTREND, candleOf, linear } from './testSeries';
+import { analyzeTechnicals, combine, summarizeAnalysts, type AnalystSummary, type Signal, type TechnicalAnalysis } from '../../src/finance/scoring.js';
+import { HORIZONS } from '../../src/finance/horizons.js';
+import type { RecommendationTrend } from '../../src/types.js';
+import { BOUNCE_IN_DOWNTREND, PULLBACK_IN_UPTREND, candleOf, linear } from './testSeries.js';
 
 const short = HORIZONS.short;
 

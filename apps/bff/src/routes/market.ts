@@ -1,15 +1,19 @@
 import type { FastifyInstance } from 'fastify';
 import { cachedJson, TTL } from '../cache.js';
 import { finnhub } from '../providers/finnhub.js';
-import { fmp } from '../providers/fmp.js';
-import { yahoo } from '../providers/yahoo.js';
-import * as marketData from '../marketData.js';
+import {
+  cachedCandles,
+  cachedNextEarnings,
+  cachedPriceTarget,
+  cachedQuote,
+  cachedRecommendations,
+} from '../marketCache.js';
 import { clampInt, validateEnum, validateString, validateSymbol } from '../validation.js';
 
 export async function registerMarketRoutes(app: FastifyInstance) {
   app.get<{ Params: { symbol: string } }>('/quote/:symbol', async (req) => {
     const s = validateSymbol(req.params.symbol);
-    return cachedJson(`quote:v2:${s}`, TTL.quote, () => marketData.quote(s, req.log));
+    return cachedQuote(s, req.log);
   });
 
   app.get<{ Params: { symbol: string } }>('/profile/:symbol', async (req) => {
@@ -24,57 +28,22 @@ export async function registerMarketRoutes(app: FastifyInstance) {
     const s = validateSymbol(req.params.symbol);
     const resolution = validateEnum(req.query.resolution, ['D', 'W', 'M'] as const, 'D');
     const lookbackDays = clampInt(req.query.lookbackDays, 365, 30, 3650); // 1 mois → 10 ans
-    const ttl = resolution === 'D' ? TTL.candlesDaily : TTL.candlesWeekly;
-    // v2 : réponses enrichies de la devise et de la source (repli Yahoo hors US).
-    return cachedJson(`candles:v2:${s}:${resolution}:${lookbackDays}`, ttl, () =>
-      marketData.candles(s, resolution, lookbackDays, req.log),
-    );
+    return cachedCandles(s, resolution, lookbackDays, req.log);
   });
 
   app.get<{ Params: { symbol: string } }>('/recommendations/:symbol', async (req) => {
     const s = validateSymbol(req.params.symbol);
-    return cachedJson(`reco:${s}`, TTL.recommendations, async () => {
-      return (
-        (await yahoo.recommendations(s)) ??
-        (await fmp.recommendations(s)) ??
-        (await finnhub.recommendations(s))
-      );
-    });
+    return cachedRecommendations(s);
   });
 
   app.get<{ Params: { symbol: string } }>('/price-target/:symbol', async (req) => {
     const s = validateSymbol(req.params.symbol);
-    // v2 : les anciennes entrées pouvaient contenir des objectifs à 0 inventés.
-    return cachedJson(`target:v2:${s}`, TTL.priceTarget, async () => {
-      return (
-        (await yahoo.priceTarget(s)) ??
-        (await fmp.priceTarget(s)) ??
-        (await finnhub.priceTarget(s))
-      );
-    });
+    return cachedPriceTarget(s);
   });
 
   app.get<{ Params: { symbol: string } }>('/earnings/:symbol', async (req) => {
     const s = validateSymbol(req.params.symbol);
-    return cachedJson(`earnings:${s}`, TTL.earnings, async () => {
-      const fromYahoo = await yahoo.nextEarnings(s);
-      if (fromYahoo) return fromYahoo;
-
-      const today = new Date();
-      const from = new Date(today);
-      from.setDate(from.getDate() - 7);
-      const to = new Date(today);
-      to.setDate(to.getDate() + 120);
-      const iso = (d: Date) => d.toISOString().slice(0, 10);
-
-      const res = await finnhub.earningsCalendar(s, iso(from), iso(to));
-      if (!res) return null;
-      const startOfToday = new Date(today.toDateString()).getTime();
-      const upcoming = res.earningsCalendar
-        .filter((e) => new Date(e.date).getTime() >= startOfToday - 86400_000)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      return upcoming[0] ?? null;
-    });
+    return cachedNextEarnings(s);
   });
 
   app.get<{ Querystring: { q: string } }>('/search', async (req) => {

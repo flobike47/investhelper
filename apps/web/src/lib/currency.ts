@@ -1,53 +1,8 @@
 /**
- * Heuristique d'inférence de la devise native d'un ticker à partir de son
- * suffixe d'exchange (norme Yahoo Finance / Twelve Data). Les tickers US
- * "plats" (AAPL, NVDA, etc.) sont supposés en USD.
- *
- * Cas particulier : la plupart des ETFs UCITS listés à Londres (CSPX.L,
- * EQQQ.L, VWRA.L...) sont libellés en USD malgré le suffixe .L. On les
- * traite à part.
+ * Formatage des montants pour l'affichage. Les conversions sont faites par le
+ * BFF, qui renvoie chaque montant en devise native et en euros (`Money`).
  */
-
-const SUFFIX_TO_CURRENCY: Record<string, string> = {
-  '.PA': 'EUR', '.AS': 'EUR', '.DE': 'EUR', '.MI': 'EUR',
-  '.MC': 'EUR', '.LS': 'EUR', '.BR': 'EUR', '.VI': 'EUR',
-  '.HE': 'EUR', '.IR': 'EUR',
-  '.L': 'GBP',
-  '.SW': 'CHF',
-  '.T': 'JPY', '.TYO': 'JPY',
-  '.HK': 'HKD',
-  '.TO': 'CAD', '.V': 'CAD',
-  '.AX': 'AUD',
-};
-
-const USD_DENOMINATED_LONDON_ETFS = new Set([
-  'CSPX.L', 'EQQQ.L', 'VWRA.L', 'VWRP.L', 'IWDA.L', 'EIMI.L', 'SWDA.L',
-]);
-
-export function inferCurrency(symbol: string): string {
-  if (USD_DENOMINATED_LONDON_ETFS.has(symbol)) return 'USD';
-  for (const [suffix, curr] of Object.entries(SUFFIX_TO_CURRENCY)) {
-    if (symbol.endsWith(suffix)) return curr;
-  }
-  return 'USD';
-}
-
-/**
- * @param rates { USD: 1.04, GBP: 0.83, ... } where 1 EUR = X currency
- * @returns le montant en EUR, ou null si le taux manque — jamais le montant
- *          natif présenté comme des euros.
- */
-export function convertToEur(
-  amount: number | null | undefined,
-  currency: string,
-  rates: Record<string, number> | null | undefined,
-): number | null {
-  if (amount === null || amount === undefined || !Number.isFinite(amount)) return null;
-  if (currency === 'EUR') return amount;
-  const rate = rates?.[currency];
-  if (!rate) return null;
-  return amount / rate;
-}
+import type { Money } from '@/types/signals';
 
 const eurFormatter = new Intl.NumberFormat('fr-FR', {
   style: 'currency',
@@ -89,19 +44,11 @@ export function formatNative(
 }
 
 /**
- * Tente de formater en EUR. Si les taux ne sont pas encore chargés (ou ne
- * couvrent pas la devise native), retourne le prix natif avec le bon symbole
- * — sans jamais étiqueter un montant non converti comme étant en euros.
+ * Montant en euros quand la conversion est disponible, sinon en devise native
+ * avec son symbole — jamais un montant non converti étiqueté en euros.
  */
-export function priceToEur(
-  amount: number | null | undefined,
-  symbol: string,
-  rates: Record<string, number> | null | undefined,
-): string {
-  if (amount === null || amount === undefined || !Number.isFinite(amount)) return '—';
-  const currency = inferCurrency(symbol);
-  if (currency === 'EUR') return formatEur(amount);
-  const rate = rates?.[currency];
-  if (!rate || rate === 0) return formatNative(amount, currency);
-  return formatEur(amount / rate);
+export function formatMoney(m: Money | null | undefined, currency: string | null): string {
+  if (m?.eur !== null && m?.eur !== undefined && Number.isFinite(m.eur)) return formatEur(m.eur);
+  if (m?.native !== null && m?.native !== undefined && currency) return formatNative(m.native, currency);
+  return '—';
 }

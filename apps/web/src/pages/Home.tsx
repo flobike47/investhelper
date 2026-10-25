@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { useLocation } from 'react-router-dom';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useWatchlist } from '@/hooks/useWatchlist';
-import { useAnalyzedTickers } from '@/hooks/useStockData';
+import { useSignals } from '@/hooks/useSignals';
 import { HORIZONS, HORIZON_LIST, type Horizon } from '@/constants/horizons';
 import { summarizeWatchlist, trendOf } from '@/lib/watchlistSummary';
 import { formatSignedPct } from '@/lib/format';
@@ -43,7 +43,7 @@ export default function Home() {
   const { pathname } = useLocation();
   const { horizon, setHorizon } = useUserSettings();
   const { tickers, loading, error } = useWatchlist();
-  const analyzed = useAnalyzedTickers(tickers, HORIZONS[horizon]);
+  const analyzed = useSignals(tickers, horizon);
   const summary = summarizeWatchlist(analyzed);
   const selected = decodeURIComponent(pathname.match(/^\/asset\/([^/]+)/)?.[1] ?? '').toUpperCase();
 
@@ -112,7 +112,7 @@ export default function Home() {
             <div style={{ ...card, overflow: 'hidden' }}>
               {analyzed.map((t, i) => (
                 <div key={t.symbol} style={{ borderTop: i === 0 ? undefined : `1px solid ${token.colorBorderSecondary}` }}>
-                  <AssetRow data={t} horizon={horizon} to={`/asset/${encodeURIComponent(t.symbol)}`} selected={t.symbol === selected} />
+                  <AssetRow data={t} to={`/asset/${encodeURIComponent(t.symbol)}`} selected={t.symbol === selected} />
                 </div>
               ))}
             </div>

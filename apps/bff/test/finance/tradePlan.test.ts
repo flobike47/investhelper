@@ -1,11 +1,10 @@
-// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { buildTradeLevels } from './tradePlan';
-import { analyzeTechnicals } from './scoring';
-import { HORIZONS } from '@/constants/horizons';
-import type { Signal } from './scoring';
-import { PULLBACK_IN_UPTREND, candleOf, linear } from './testSeries';
+import { buildTradeLevels } from '../../src/finance/tradePlan.js';
+import { analyzeTechnicals } from '../../src/finance/scoring.js';
+import { HORIZONS } from '../../src/finance/horizons.js';
+import type { Signal } from '../../src/finance/scoring.js';
+import { PULLBACK_IN_UPTREND, candleOf, linear } from './testSeries.js';
 
 const NO_LEVELS = { entry: null, stop: null, target: null, riskReward: null, unfavorable: false };
 
