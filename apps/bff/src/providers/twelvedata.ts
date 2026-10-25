@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { createProviderClient, ProviderError } from './http.js';
 import type { Candle } from '../types.js';
+import { barsFor } from '../candleBars.js';
 
 const client = createProviderClient('https://api.twelvedata.com', 'Twelve Data');
 
@@ -15,6 +16,7 @@ interface TimeSeriesValue {
   open: string; high: string; low: string; close: string; volume: string;
 }
 interface TimeSeriesResponse {
+  meta?: { currency?: string };
   values?: TimeSeriesValue[];
   status?: 'ok' | 'error';
   code?: number;
@@ -26,12 +28,7 @@ const INTERVAL: Record<'D' | 'W' | 'M', string> = { D: '1day', W: '1week', M: '1
 export const twelvedata = {
   candles: async (symbol: string, resolution: 'D' | 'W' | 'M', lookbackDays: number): Promise<Candle> => {
     const interval = INTERVAL[resolution];
-    const outputsize = Math.min(
-      5000,
-      resolution === 'D' ? lookbackDays
-        : resolution === 'W' ? Math.ceil(lookbackDays / 7)
-        : Math.ceil(lookbackDays / 30),
-    );
+    const outputsize = barsFor(resolution, lookbackDays);
 
     const res = await client.get<TimeSeriesResponse>('/time_series', {
       params: { symbol, interval, outputsize, order: 'ASC' },
@@ -53,6 +50,6 @@ export const twelvedata = {
       v.push(Number(row.volume));
       t.push(Math.floor(new Date(row.datetime).getTime() / 1000));
     }
-    return { c, h, l, o, t, v, s: 'ok' };
+    return { c, h, l, o, t, v, s: 'ok', currency: data.meta?.currency };
   },
 };

@@ -1,0 +1,78 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": {
+          "currency": "GBp",
+          "symbol": "BP.L",
+          "exchangeName": "LSE",
+          "regularMarketPrice": 638.5,
+          "regularMarketChangePercent": 4.347,
+          "regularMarketTime": 1792773429,
+          "chartPreviousClose": 563.2,
+          "dataGranularity": "1d"
+        },
+        "timestamp": [
+          1792393200,
+          1792479600,
+          1792566000,
+          1792652400,
+          1792738800
+        ],
+        "indicators": {
+          "quote": [
+            {
+              "open": [
+                619.0,
+                616.3,
+                618.0,
+                623.0,
+                623.6
+              ],
+              "high": [
+                622.7,
+                622.4,
+                621.0,
+                626.1,
+                638.538
+              ],
+              "low": [
+                612.5,
+                600.9,
+                613.4,
+                611.9,
+                619.2
+              ],
+              "close": [
+                616.4,
+                605.8,
+                617.1,
+                611.9,
+                638.5
+              ],
+              "volume": [
+                25603773,
+                45463111,
+                69436349,
+                57518221,
+                67070753
+              ]
+            }
+          ],
+          "adjclose": [
+            {
+              "adjclose": [
+                616.4,
+                605.8,
+                617.1,
+                611.9,
+                638.5
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "error": null
+  }
+}
