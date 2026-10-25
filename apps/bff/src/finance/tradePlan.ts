@@ -1,8 +1,8 @@
-import type { Candle } from '@/types/finnhub';
-import type { HorizonConfig } from '@/constants/horizons';
-import { ATR_PERIOD, MIN_RISK_REWARD, TARGET_RISK_MULTIPLE } from '@/constants/risk';
-import { atr, lastDefined } from './indicators';
-import type { Signal } from './scoring';
+import type { Candle } from '../types.js';
+import type { HorizonConfig } from './horizons.js';
+import { ATR_PERIOD, MIN_RISK_REWARD, TARGET_RISK_MULTIPLE } from './risk.js';
+import { atr, lastDefined } from './indicators.js';
+import type { Signal } from './scoring.js';
 
 /** Niveaux chiffrés du plan conditionnel, dans la devise native de l'actif. */
 export interface TradeLevels {

@@ -9,7 +9,7 @@ import {
 } from './watchlistSummary';
 
 function snap(partial: Partial<TickerSnapshot> = {}): TickerSnapshot {
-  return { loading: false, error: null, changePct: null, score: null, ...partial };
+  return { loading: false, error: null, changePct: null, score: null, signal: 'unknown', ...partial };
 }
 
 describe('averageOfAvailable', () => {
@@ -60,8 +60,8 @@ describe('summarizeWatchlist', () => {
 
   it('moyenne sur les seuls tickers disponibles, compteur sur les seuls scorés', () => {
     const s = summarizeWatchlist([
-      snap({ changePct: 2, score: { signal: 'buy' } }),
-      snap({ changePct: 4, score: { signal: 'hold' } }),
+      snap({ changePct: 2, score: 60, signal: 'buy' }),
+      snap({ changePct: 4, score: 10, signal: 'hold' }),
       snap({ loading: true }),
       snap({ error: new Error('boom') }),
     ]);
@@ -82,10 +82,10 @@ describe('tickerStatus', () => {
   const base = { ...snap(), price: null };
   it.each([
     [{ ...base, loading: true, error: new Error('x') }, 'loading'],
-    [{ ...base, price: 10 }, 'ok'],
+    [{ ...base, price: { native: 10, eur: 9 } }, 'ok'],
     [{ ...base, error: new Error('x') }, 'error'],
-    [{ ...base, error: new Error('x'), price: 10 }, 'partial'],
-    [{ ...base, error: new Error('x'), score: { signal: 'hold' as const } }, 'partial'],
+    [{ ...base, error: new Error('x'), price: { native: 10, eur: 9 } }, 'partial'],
+    [{ ...base, error: new Error('x'), score: 10, signal: 'hold' as const }, 'partial'],
   ])('cas %#', (t, expected) => {
     expect(tickerStatus(t)).toBe(expected);
   });

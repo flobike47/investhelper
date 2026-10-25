@@ -1,13 +1,12 @@
 import { useMemo } from 'react';
 import { useMarketThemes } from './useNewsAnalysis';
-import { useAnalyzedTickers } from './useStockData';
+import { useSignals, type TickerView } from './useSignals';
 import { symbolsForSectors, type Sector, type UniverseEntry } from '@/constants/universe';
-import { HORIZONS, type Horizon } from '@/constants/horizons';
+import type { Horizon } from '@/constants/horizons';
 import type { MarketThemes } from '@/services/api';
-import type { AnalyzedTicker } from './useStockData';
 
 export interface ThematicPick {
-  ticker: AnalyzedTicker;
+  ticker: TickerView;
   entry: UniverseEntry;
   themes: string[];
   themeBias: number; // -1..+1 agrégé des directions de thèmes auxquels le ticker est exposé
@@ -54,17 +53,17 @@ export function useThematicPicks(horizon: Horizon, topN = 5): UseThematicPicksRe
   }, [themesQuery.data]);
 
   const symbols = candidates.map((c) => c.symbol);
-  const analyzed = useAnalyzedTickers(symbols, HORIZONS[horizon]);
+  const analyzed = useSignals(symbols, horizon);
 
   const picks = useMemo<ThematicPick[]>(() => {
     if (!themesQuery.data) return [];
     const enriched = analyzed
       .map((ticker, i) => {
         const entry = candidates[i];
-        if (!entry || !ticker.score) return null;
+        if (!entry || ticker.score === null) return null;
         const { themes, bias } = aggregateThemeBias(entry, themesQuery.data!.themes);
         // Final ranking score = combined score (-100..100) + theme bias bonus (-15..+15)
-        const finalScore = ticker.score.score + bias * 15;
+        const finalScore = ticker.score + bias * 15;
         return { ticker, entry, themes, themeBias: bias, finalScore };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
