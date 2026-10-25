@@ -20,7 +20,7 @@ description: Écrire, organiser ou mettre en place les tests d'InvestHelper (Vit
 - Couverture : `@vitest/coverage-v8`. Viser des seuils sur `lib/` et `apps/bff/src` (≥ 80 % lignes), pas un chiffre global vanité.
 
 ## Quoi tester, par priorité
-1. **Logique pure à fort impact** : `lib/indicators.ts`, `scoring.ts`, `currency.ts`, `historicalAnalog.ts`, `audio.ts` (`splitDialogue`, `pcmToWavBlob`, `processWithConcurrency`), `bff/validation.ts`, `autoDurationMinutes`. Rapide, déterministe, rentable.
+1. **Logique pure à fort impact** : `apps/bff/src/finance/*` (indicateurs, scoring, analogue, plan de risque, devises ; tests dans `apps/bff/test/finance/`, séries synthétiques dans `testSeries.ts`), `audio.ts` (`splitDialogue`, `pcmToWavBlob`, `processWithConcurrency`), `bff/validation.ts`, `autoDurationMinutes`. Rapide, déterministe, rentable.
 2. **Routes BFF** (`app.inject`) : nominal, 401, 400, isolation entre users, 404 ressource d'un autre user, 429 quota, provider en panne → erreur propre, Redis down → passthrough.
 3. **Hooks/composants** critiques : mutations optimistes (rollback sur erreur), états chargement/erreur/vide, `RequireAuth`.
 4. **E2E** (Playwright) sur 2-3 parcours seulement une fois le reste en place : login mocké → watchlist → podcast.
