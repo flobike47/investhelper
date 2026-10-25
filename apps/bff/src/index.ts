@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { redis } from './cache.js';
 import { startPodcastReminder } from './jobs/podcastReminder.js';
 import { startPriceAlerts } from './jobs/priceAlerts.js';
+import { startSignalSnapshots } from './jobs/signalSnapshots.js';
 
 const app = await buildServer();
 
@@ -18,6 +19,7 @@ try {
 
 const stopPodcastReminder = startPodcastReminder(app.log);
 const stopPriceAlerts = startPriceAlerts(app.log);
+const stopSignalSnapshots = startSignalSnapshots(app.log);
 
 let shuttingDown = false;
 const shutdown = async (signal: string) => {
@@ -27,6 +29,7 @@ const shutdown = async (signal: string) => {
   try {
     stopPodcastReminder();
     stopPriceAlerts();
+    stopSignalSnapshots();
     await app.close();
     await redis.quit();
   } catch (e) {

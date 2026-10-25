@@ -163,6 +163,35 @@ describe('taille de position dans la fiche', () => {
   });
 });
 
+describe('GET /api/signals/track-record', () => {
+  const snap = (symbol: string, day: string, signal: string, price: number) => ({ symbol, horizon: 'short', day, signal, price, currency: 'USD' });
+
+  it('mesure les signaux passés à partir des instantanés (route prioritaire sur /signals/:symbol)', async () => {
+    fake.seed({
+      user_settings: [],
+      signal_snapshots: [
+        snap('AAPL', '2026-01-01', 'buy', 100),
+        snap('AAPL', '2026-01-31', 'buy', 110),
+        snap('SPY', '2026-01-01', 'hold', 500),
+        snap('SPY', '2026-01-31', 'hold', 510),
+      ],
+    });
+    const res = await get('/api/signals/track-record?horizon=short');
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body).toMatchObject({ horizon: 'short', benchmark: 'SPY', since: '2026-01-01' });
+    expect(body.bySignal.buy['1m'].n).toBe(1);
+    expect(body.bySignal.buy['1m'].medianReturn).toBeCloseTo(0.1, 10);
+    expect(m.cachedQuote).not.toHaveBeenCalled();
+  });
+
+  it('renvoie un suivi vide sans instantané', async () => {
+    const body = (await get('/api/signals/track-record?horizon=long')).json();
+    expect(body.since).toBeNull();
+    expect(body.bySignal.sell['12m']).toMatchObject({ n: 0, significant: false });
+  });
+});
+
 describe('GET /api/signals?symbols=', () => {
   it('renvoie une ligne par symbole, dans l’ordre, sans doublon', async () => {
     const res = await get('/api/signals?symbols=AAPL,msft,AAPL&horizon=short');
