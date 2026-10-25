@@ -2,6 +2,7 @@ import { buildServer } from './server.js';
 import { config } from './config.js';
 import { redis } from './cache.js';
 import { startPodcastReminder } from './jobs/podcastReminder.js';
+import { startPriceAlerts } from './jobs/priceAlerts.js';
 
 const app = await buildServer();
 
@@ -16,6 +17,7 @@ try {
 }
 
 const stopPodcastReminder = startPodcastReminder(app.log);
+const stopPriceAlerts = startPriceAlerts(app.log);
 
 let shuttingDown = false;
 const shutdown = async (signal: string) => {
@@ -24,6 +26,7 @@ const shutdown = async (signal: string) => {
   app.log.info(`Received ${signal}, shutting down...`);
   try {
     stopPodcastReminder();
+    stopPriceAlerts();
     await app.close();
     await redis.quit();
   } catch (e) {

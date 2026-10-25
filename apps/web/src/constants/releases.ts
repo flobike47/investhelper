@@ -26,6 +26,7 @@ export const RELEASES: Release[] = [
     added: [
       'La fiche prévient quand des résultats tombent pendant la durée de détention du plan.',
       'Avec ton capital renseigné dans les réglages, la fiche calcule combien de titres acheter et la perte maximale au stop.',
+      'Alertes de prix : une notification quand une action touche son stop, son objectif ou le prix de ton choix.',
     ],
     improved: ['La watchlist et les idées se chargent plus vite.'],
   },
