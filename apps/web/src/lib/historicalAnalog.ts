@@ -13,13 +13,13 @@ export interface HistoricalAnalog {
   bestReturn: number | null;
   /** Probabilité de retour positif (0..1) */
   positiveRatio: number | null;
-  /** Horizon en jours (sessions) sur lequel le retour est mesuré */
-  horizonDays: number;
+  /** Fenêtre sur laquelle le retour est mesuré, en bougies (séances ou semaines selon l'horizon) */
+  horizonBars: number;
 }
 
 interface FindOpts {
   rsiBucket: 'oversold' | 'neutral' | 'overbought';
-  horizonDays: number;
+  horizonBars: number;
   rsiPeriod?: number;
 }
 
@@ -36,7 +36,7 @@ function bucketBounds(b: FindOpts['rsiBucket']): [number, number] {
 
 /**
  * Trouve dans l'historique réel de la série les jours où le RSI était dans
- * le même bucket que le setup actuel, puis mesure le retour des N sessions
+ * le même bucket que le setup actuel, puis mesure le retour des N bougies
  * suivantes pour chacun. Aucune extrapolation : si on n'a que k occurrences,
  * on renvoie k.
  */
@@ -46,7 +46,7 @@ export function findRsiAnalog(candle: Candle | null | undefined, opts: FindOpts)
   const closes = candle.c;
   const rsiSeries = rsi(closes, opts.rsiPeriod ?? 14);
   const [low, high] = bucketBounds(opts.rsiBucket);
-  const horizon = opts.horizonDays;
+  const horizon = opts.horizonBars;
 
   const returns: number[] = [];
 
@@ -78,7 +78,7 @@ export function findRsiAnalog(candle: Candle | null | undefined, opts: FindOpts)
       worstReturn: null,
       bestReturn: null,
       positiveRatio: null,
-      horizonDays: horizon,
+      horizonBars: horizon,
     };
   }
 
@@ -93,7 +93,7 @@ export function findRsiAnalog(candle: Candle | null | undefined, opts: FindOpts)
     worstReturn: sorted[0],
     bestReturn: sorted[sorted.length - 1],
     positiveRatio: positive / returns.length,
-    horizonDays: horizon,
+    horizonBars: horizon,
   };
 }
 

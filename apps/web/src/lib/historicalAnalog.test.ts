@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { findRsiAnalog, pickBucketFromRsi } from './historicalAnalog';
 import { candleOf, linear, segments } from './testSeries';
+import { analogBarsFor } from '@/constants/horizons';
 
 /** Deux épisodes de survente bien séparés, chacun suivi d'une reprise. */
 const TWO_DIPS = segments(100, [
@@ -14,26 +15,39 @@ const TWO_DIPS = segments(100, [
 
 describe('findRsiAnalog', () => {
   it('ne calcule rien sans données ou sur moins de 60 bougies', () => {
-    expect(findRsiAnalog(null, { rsiBucket: 'oversold', horizonDays: 5 })).toBeNull();
-    expect(findRsiAnalog(candleOf(linear(59, 100, 1)), { rsiBucket: 'oversold', horizonDays: 5 })).toBeNull();
+    expect(findRsiAnalog(null, { rsiBucket: 'oversold', horizonBars: 5 })).toBeNull();
+    expect(findRsiAnalog(candleOf(linear(59, 100, 1)), { rsiBucket: 'oversold', horizonBars: 5 })).toBeNull();
   });
 
   it("renvoie 0 occurrence et aucune statistique quand le setup n'est jamais apparu", () => {
-    const a = findRsiAnalog(candleOf(linear(120, 100, 1)), { rsiBucket: 'oversold', horizonDays: 5 });
+    const a = findRsiAnalog(candleOf(linear(120, 100, 1)), { rsiBucket: 'oversold', horizonBars: 5 });
     expect(a).toMatchObject({ occurrences: 0, medianReturn: null, positiveRatio: null });
   });
 
   it('compte un seul cas par épisode de survente, pas un par jour', () => {
-    const a = findRsiAnalog(candleOf(TWO_DIPS), { rsiBucket: 'oversold', horizonDays: 5 });
+    const a = findRsiAnalog(candleOf(TWO_DIPS), { rsiBucket: 'oversold', horizonBars: 5 });
     expect(a?.occurrences).toBe(2);
   });
 
   it('mesure le retour sur la fenêtre demandée et le borne par le pire et le meilleur cas', () => {
-    const a = findRsiAnalog(candleOf(TWO_DIPS), { rsiBucket: 'oversold', horizonDays: 20 });
+    const a = findRsiAnalog(candleOf(TWO_DIPS), { rsiBucket: 'oversold', horizonBars: 20 });
     expect(a?.medianReturn).not.toBeNull();
     expect(a!.worstReturn!).toBeLessThanOrEqual(a!.medianReturn!);
     expect(a!.bestReturn!).toBeGreaterThanOrEqual(a!.medianReturn!);
-    expect(a?.horizonDays).toBe(20);
+    expect(a?.horizonBars).toBe(20);
+  });
+});
+
+describe('findRsiAnalog sur l’horizon long (J2)', () => {
+  it('trouve des cas sur 5 ans de bougies hebdomadaires avec une fenêtre de 52 semaines', () => {
+    const weekly = segments(100, [
+      { n: 60, step: 1 },
+      { n: 10, step: -3 },
+      { n: 191, step: 1 },
+    ]);
+    const a = findRsiAnalog(candleOf(weekly), { rsiBucket: 'oversold', horizonBars: analogBarsFor('long') });
+    expect(a?.occurrences).toBeGreaterThan(0);
+    expect(a?.horizonBars).toBe(52);
   });
 });
 
