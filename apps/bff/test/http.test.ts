@@ -13,6 +13,13 @@ beforeAll(async () => {
       res.writeHead(503, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'service down' }));
     }
+    if (req.url === '/google') {
+      // Format d'erreur des API Google (Gemini) : `error` est un objet
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: { code: 400, message: 'Model tried to generate text', status: 'INVALID_ARGUMENT' },
+      }));
+    }
     // /hang : pas de réponse
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -35,6 +42,12 @@ describe('createProviderClient', () => {
     const client = createProviderClient(baseURL, 'Down', 1000);
     const err = await client.get('/boom').catch((e: unknown) => e);
     expect(err).toMatchObject({ status: 503, provider: 'Down', message: 'service down' });
+  });
+
+  it("lit le message d'une erreur au format Google ({ error: { message } })", async () => {
+    const client = createProviderClient(baseURL, 'Gemini', 1000);
+    const err = await client.get('/google').catch((e: unknown) => e);
+    expect(err).toMatchObject({ status: 400, message: 'Model tried to generate text' });
   });
 
   it('renvoie 502 quand le provider est injoignable', async () => {
