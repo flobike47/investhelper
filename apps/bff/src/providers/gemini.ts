@@ -104,10 +104,16 @@ export const gemini = {
       speaker,
       voiceConfig: { prebuiltVoiceConfig: { voiceName } },
     }));
+    // Consigne explicite avant la transcription (forme de la doc Google) : sans
+    // elle, certains extraits (citations, ton journalistique) sont lus comme un
+    // prompt et Gemini répond 400 « Model tried to generate text ». La consigne
+    // n'est pas lue : l'audio est identique, la clé de cache TTS reste valable.
+    const names = Object.keys(speakers).join(' and ');
+    const prompt = `TTS the following conversation between ${names}:\n${text}`;
     const res = await client.post<GeminiResponse>(
       `/models/${TTS_MODEL}:generateContent`,
       {
-        contents: [{ parts: [{ text }] }],
+        contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           responseModalities: ['AUDIO'],
           speechConfig: { multiSpeakerVoiceConfig: { speakerVoiceConfigs } },
