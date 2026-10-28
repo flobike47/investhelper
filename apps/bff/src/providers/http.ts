@@ -52,7 +52,7 @@ export function createProviderClient(
   });
   client.interceptors.response.use(
     (r) => r,
-    (err: AxiosError<{ error?: string; message?: string }>) => {
+    (err: AxiosError<{ error?: string | { message?: string }; message?: string }>) => {
       // Pas de réponse : timeout → 504, autre erreur réseau → 502.
       // Jamais 500 : ce n'est pas un bug du BFF mais une panne amont.
       const timedOut = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
@@ -60,8 +60,11 @@ export function createProviderClient(
       if (timedOut) {
         return Promise.reject(new ProviderError(`${provider} : délai dépassé`, status, provider));
       }
+      // `error` est une chaîne (Finnhub…) ou un objet { code, message, status }
+      // (API Google / Gemini) — l'objet donnait « [object Object] » dans les logs.
+      const upstreamError = err.response?.data?.error;
       const msg =
-        err.response?.data?.error ||
+        (typeof upstreamError === 'string' ? upstreamError : upstreamError?.message) ||
         err.response?.data?.message ||
         err.message ||
         'Erreur réseau';
