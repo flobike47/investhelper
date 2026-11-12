@@ -1,9 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import { cachedBinary, TTL } from '../cache.js';
-import { MAX_TTS_TEXT, ttsCacheKey, validateSpeakers } from '../tts.js';
-import { gemini } from '../providers/gemini.js';
+import { MAX_TTS_TEXT, validateSpeakers } from '../tts.js';
+import { synthesizeChunk } from '../podcastAudio.js';
 import { generatePodcastScript, MAX_PODCAST_MINUTES } from '../podcastScript.js';
-import { enforceQuota } from '../ratelimit.js';
 import { requireUser } from '../auth.js';
 import { BadRequest, clampArray, clampInt, validateString } from '../validation.js';
 
@@ -54,10 +52,7 @@ export async function registerPodcastRoutes(app: FastifyInstance) {
     const text = validateString(req.body?.text ?? '', 'text', MAX_TTS_TEXT, 1);
     const speakers = validateSpeakers(req.body?.speakers);
 
-    const audio = await cachedBinary(ttsCacheKey(text, speakers), TTL.tts, async () => {
-      await enforceQuota(user.id, 'podcastTts');
-      return gemini.ttsMultiSpeaker(text, speakers);
-    });
+    const audio = await synthesizeChunk(user.id, text, speakers);
     reply
       .header('Content-Type', 'audio/L16; codec=pcm; rate=24000')
       .header('Cache-Control', 'private, max-age=2592000') // private : ne pas mettre en cache CDN public
