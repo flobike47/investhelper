@@ -19,6 +19,13 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-12',
+    improved: [
+      'Le rappel du podcast arrive une fois l’épisode prêt : la lecture démarre tout de suite, sans attente.',
+      'Les limites quotidiennes d’analyses et de podcasts sont plus basses ; ce qu’il te reste est visible dans les réglages.',
+    ],
+  },
+  {
     id: '2026-10-25.2',
     fixed: [
       'Les actions européennes et internationales (Paris, Francfort, Zurich, Londres…) affichent enfin leur cours et leur graphique.',
