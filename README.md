@@ -23,8 +23,8 @@ investhelper/
   que l'URL du BFF + le JWT Supabase fraîchement émis.
 - **Cache Redis agressif** : sentiment 6h, thèmes 3h, candles 1h, TTS 30 jours.
   Économies massives sur Gemini et bande passante.
-- **Quotas par utilisateur** : 200 sentiments/jour, 100 thèmes/jour,
-  20 podcasts/jour, 1000 TTS/jour — protège ta facture Gemini si tu ouvres
+- **Quotas par utilisateur** : 30 sentiments/jour, 10 thèmes/jour,
+  3 podcasts/jour, 60 chunks TTS/jour — protège ta facture Gemini si tu ouvres
   publiquement.
 - **Fallback centralisé** : Yahoo → FMP → Finnhub pour les recos analystes,
   géré côté serveur. Le frontend fait UNE requête, le BFF compose.

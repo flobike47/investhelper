@@ -5,16 +5,20 @@ import { redis } from './cache.js';
  * Fenêtre glissante simple via INCR + EXPIRE.
  */
 export const QUOTAS = {
-  sentiment: { max: 200, windowSec: 24 * 60 * 60 },
-  themes:    { max: 100, windowSec: 24 * 60 * 60 },
-  podcastScript: { max: 20, windowSec: 24 * 60 * 60 },
-  podcastTts:    { max: 1000, windowSec: 24 * 60 * 60 },
+  // Décomptés sur cache miss uniquement : sentiment en cache 6 h par ticker,
+  // thèmes 3 h partagés par tous, script 24 h.
+  sentiment: { max: 30, windowSec: 24 * 60 * 60 },
+  themes:    { max: 10, windowSec: 24 * 60 * 60 },
+  podcastScript: { max: 3, windowSec: 24 * 60 * 60 },
+  // Un épisode de 10 min ≈ 15 chunks (≤ 800 caractères) → ~4 épisodes/jour,
+  // dont celui préparé par le rappel quotidien.
+  podcastTts:    { max: 60, windowSec: 24 * 60 * 60 },
   // Lecture publique d'un épisode partagé — compté par token de partage.
-  // Un épisode de 8 min ≈ 15 chunks ; 200 laisse de la marge tout en
-  // bornant la facture si un lien fuit.
-  publicTts:     { max: 200, windowSec: 24 * 60 * 60 },
+  // Les chunks d'un épisode sont en nombre fixe et en cache 30 jours :
+  // 20 couvre un épisode complet tout en bornant la facture si un lien fuit.
+  publicTts:     { max: 20, windowSec: 24 * 60 * 60 },
   // Bouton « Envoyer un test » des réglages : borne les envois manuels.
-  pushTest:      { max: 10, windowSec: 24 * 60 * 60 },
+  pushTest:      { max: 3, windowSec: 24 * 60 * 60 },
 } as const;
 
 export type QuotaBucket = keyof typeof QUOTAS;

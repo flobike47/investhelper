@@ -201,9 +201,10 @@ describe('POST /api/user/push/test', () => {
     expect(fake.rows('push_subscriptions')).toHaveLength(1);
   });
 
-  it('renvoie 429 au-delà de 10 tests par jour', async () => {
+  it('renvoie 429 au-delà du quota journalier de tests', async () => {
+    const { QUOTAS } = await import('../src/ratelimit.js');
     const send = () => app.inject({ method: 'POST', url: '/api/user/push/test', headers: auth('token-a') });
-    for (let i = 0; i < 10; i++) expect((await send()).statusCode).toBe(200);
+    for (let i = 0; i < QUOTAS.pushTest.max; i++) expect((await send()).statusCode).toBe(200);
     expect((await send()).statusCode).toBe(429);
   });
 });
