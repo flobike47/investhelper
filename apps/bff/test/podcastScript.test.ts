@@ -45,6 +45,24 @@ beforeEach(async () => {
 });
 
 describe('generatePodcastScript : détails et sujets', () => {
+  it("ne ressert pas un script en cache à l'ancien format (sans sujets ni détails)", async () => {
+    // Entrée écrite par le BFF d'avant, sous l'ancienne clé, le même jour.
+    const { hashKey } = await import('../src/cache.js');
+    const legacyKey = `podcast:script:${hashKey(
+      JSON.stringify({ categories: ['bourse', 'energie'], duration: 2, day: new Date().toISOString().slice(0, 10) }),
+    )}`;
+    await redis.set(legacyKey, JSON.stringify({ script: 'Alex: ancien.', sources: ['https://n.test/old'], durationEstimateSec: 60 }));
+    textMock
+      .mockResolvedValueOnce(SCRIPT)
+      .mockResolvedValueOnce('{"topics":[{"title":"BCE","summary":"Taux inchangés.","category":"bourse","anchor":"Sophie: La BCE"}]}');
+
+    const result = await generatePodcastScript('user-1', ['bourse', 'energie'], 2, log);
+
+    expect(result.script).toBe(SCRIPT);
+    expect(result.sourceDetails.length).toBeGreaterThan(0);
+    expect(result.topics.map((t) => t.title)).toEqual(['BCE']);
+  });
+
   it('renvoie les sources détaillées avec la catégorie de la requête, sans doublon', async () => {
     textMock.mockResolvedValueOnce(SCRIPT).mockResolvedValueOnce('{"topics":[]}');
     const result = await generatePodcastScript('user-1', ['bourse', 'energie'], 2, log);

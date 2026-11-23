@@ -126,8 +126,10 @@ export async function generatePodcastScript(
 ): Promise<ScriptResult> {
   const isAuto = target === 'auto';
 
-  // Le cache inclut la durée (ou 'auto' pour cache distinct par catégorie)
-  const cacheKey = `podcast:script:${hashKey(
+  // Le cache inclut la durée (ou 'auto' pour cache distinct par catégorie).
+  // `v2` : format avec sourceDetails et topics. Changer de version dès que la
+  // forme de ScriptResult évolue, sinon on resservirait l'ancien format 24 h.
+  const cacheKey = `podcast:script:v2:${hashKey(
     JSON.stringify({
       categories: [...categories].sort(),
       duration: target,
