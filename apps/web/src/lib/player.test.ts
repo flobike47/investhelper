@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PodcastPlayer, type PlayerDeps, type PlayerEpisode } from './player';
+import { splitForTts } from './speech';
 
 /** Faux moteur speechSynthesis : on termine les énoncés à la main. */
 function fakeSpeech() {
@@ -171,5 +172,84 @@ describe('PodcastPlayer — voix HD', () => {
     expect(t.deps.revokeObjectUrl).toHaveBeenCalledWith('blob:ep1');
     expect(t.player.getState().episode).toBeNull();
     expect(new PodcastPlayer(t.deps).getState().source).toBe('hd');
+  });
+});
+
+describe('PodcastPlayer — seekTo', () => {
+  const CHUNKS = splitForTts(SCRIPT);
+
+  it('voix de l’appareil : va au passage floor(ratio × nombre de passages) et lit', () => {
+    const t = setup();
+    t.player.load(EP);
+    t.player.pause();
+    t.player.seekTo(0.5);
+    expect(t.speech.spoken.at(-1)?.text).toBe(CHUNKS[Math.floor(0.5 * CHUNKS.length)]);
+    expect(t.player.getState().status).toBe('playing');
+  });
+
+  it('voix de l’appareil : un ratio de 1 reste sur le dernier passage', () => {
+    const t = setup();
+    t.player.load(EP);
+    t.player.seekTo(1);
+    expect(t.speech.spoken.at(-1)?.text).toBe(CHUNKS[CHUNKS.length - 1]);
+  });
+
+  it('voix de l’appareil : charge un autre épisode directement à la bonne position', () => {
+    const t = setup();
+    t.player.seekTo(0.5, EP);
+    expect(t.player.getState().episode?.id).toBe('ep1');
+    expect(t.speech.spoken.at(-1)?.text).toBe(CHUNKS[Math.floor(0.5 * CHUNKS.length)]);
+  });
+
+  it('voix HD : place l’audio à ratio × durée une fois les métadonnées connues', async () => {
+    const t = setup();
+    t.player.setSource('hd');
+    t.player.load(EP);
+    await vi.waitFor(() => expect(t.player.getState().status).toBe('playing'));
+    t.audio.fire('loadedmetadata');
+    t.player.seekTo(0.4);
+    expect(t.audio.currentTime).toBeCloseTo(100); // 0.4 × 250 s
+    expect(t.player.getState().status).toBe('playing');
+  });
+
+  it('voix HD : mémorise la position si l’audio n’est pas encore chargé', async () => {
+    const t = setup();
+    t.player.setSource('hd');
+    t.player.load(EP);
+    await vi.waitFor(() => expect(t.player.getState().status).toBe('playing'));
+    t.audio.currentTime = 0;
+    t.player.seekTo(0.4);
+    expect(t.audio.currentTime).toBe(0);
+    t.audio.fire('loadedmetadata');
+    expect(t.audio.currentTime).toBeCloseTo(100);
+  });
+
+  it('voix HD : charge l’épisode demandé puis se place à la position', async () => {
+    const t = setup();
+    t.player.setSource('hd');
+    t.player.seekTo(0.5, EP);
+    expect(t.player.getState().episode?.id).toBe('ep1');
+    await vi.waitFor(() => expect(t.player.getState().status).toBe('playing'));
+    t.audio.fire('loadedmetadata');
+    expect(t.audio.currentTime).toBeCloseTo(125);
+  });
+
+  it('voix HD : ne relance pas une synthèse en cours (une seule facture)', async () => {
+    const t = setup();
+    t.player.setSource('hd');
+    t.player.load(EP);
+    expect(t.player.getState().status).toBe('loading');
+    t.player.seekTo(0.5);
+    await vi.waitFor(() => expect(t.player.getState().status).toBe('playing'));
+    expect(t.deps.synthesizeHd).toHaveBeenCalledTimes(1);
+  });
+
+  it('borne un ratio hors de [0, 1]', () => {
+    const t = setup();
+    t.player.load(EP);
+    t.player.seekTo(-3);
+    expect(t.speech.spoken.at(-1)?.text).toBe(CHUNKS[0]);
+    t.player.seekTo(42);
+    expect(t.speech.spoken.at(-1)?.text).toBe(CHUNKS[CHUNKS.length - 1]);
   });
 });

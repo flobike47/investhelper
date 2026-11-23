@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatSignedPct } from './format';
+import { formatClock, formatDuration, formatSignedPct } from './format';
 
 const NNBSP = '\u202f';
 
@@ -36,5 +36,15 @@ describe('formatClock', () => {
     [-3, '0:00'],
   ])('formatClock(%s) → %s', (input, out) => {
     expect(formatClock(input)).toBe(out);
+  });
+});
+
+describe('formatDuration', () => {
+  it.each([
+    [120, '2 min'],
+    [125, '2 min 05'],
+    [0, '0 min'],
+  ])('%s s → %s', (sec, expected) => {
+    expect(formatDuration(sec)).toBe(expected);
   });
 });

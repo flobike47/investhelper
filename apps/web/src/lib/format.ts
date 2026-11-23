@@ -42,3 +42,10 @@ export function formatClock(seconds: number): string {
   const s = String(total % 60).padStart(2, '0');
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }
+
+/** Durée en secondes → « 2 min » ou « 2 min 05 ». */
+export function formatDuration(sec: number): string {
+  const min = Math.floor(sec / 60);
+  const rest = sec % 60;
+  return rest > 0 ? `${min} min ${String(rest).padStart(2, '0')}` : `${min} min`;
+}

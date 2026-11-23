@@ -125,9 +125,29 @@ export interface MarketThemes {
   }>;
 }
 
+/** Détail d'une source : titre et média de l'article, catégorie de la requête qui l'a ramené. */
+export interface SourceDetailDto {
+  url: string;
+  title: string | null;
+  publisher: string | null;
+  category: string | null;
+  publishedAt: string | null;
+}
+
+/** Sujet abordé dans l'épisode. `startRatio` ∈ [0, 1] : position du début dans le script. */
+export interface TopicDto {
+  title: string;
+  summary: string;
+  category: string | null;
+  startRatio: number;
+}
+
 export interface PodcastScriptResult {
   script: string;
   sources: string[];
+  /** Absents des réponses mises en cache avant cette version (cache 24 h). */
+  sourceDetails?: SourceDetailDto[];
+  topics?: TopicDto[];
   durationEstimateSec: number;
 }
 
@@ -155,6 +175,10 @@ export interface PodcastEpisodeDto {
   categories: string[];
   script: string;
   sources: string[];
+  /** null pour les épisodes antérieurs aux détails. */
+  sourceDetails?: SourceDetailDto[] | null;
+  /** null ou [] : pas de découpage par sujet (anciens épisodes). */
+  topics?: TopicDto[] | null;
   durationEstimateSec: number;
   createdAt: string;
 }

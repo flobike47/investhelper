@@ -42,15 +42,19 @@ interface TextOpts {
    * partie du maxOutputTokens part en thinking et le texte final est tronqué.
    */
   thinkingBudget?: number;
+  /** Schéma OpenAPI-subset imposé à la sortie JSON (implique la sortie JSON). */
+  responseSchema?: Record<string, unknown>;
 }
 
 async function generate(system: string | undefined, user: string, opts: TextOpts = {}): Promise<string> {
+  const jsonOutput = opts.jsonMode || opts.responseSchema !== undefined;
   const body: Record<string, unknown> = {
     contents: [{ role: 'user', parts: [{ text: user }] }],
     generationConfig: {
       temperature: opts.temperature ?? 0.2,
       ...(opts.maxOutputTokens ? { maxOutputTokens: opts.maxOutputTokens } : {}),
-      ...(opts.jsonMode ? { responseMimeType: 'application/json' } : {}),
+      ...(jsonOutput ? { responseMimeType: 'application/json' } : {}),
+      ...(opts.responseSchema ? { responseSchema: opts.responseSchema } : {}),
       ...(opts.thinkingBudget !== undefined
         ? { thinkingConfig: { thinkingBudget: opts.thinkingBudget } }
         : {}),

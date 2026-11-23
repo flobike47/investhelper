@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Alert,
   App as AntApp,
   Button,
-  Drawer,
   Dropdown,
   Empty,
   Input,
@@ -25,13 +25,12 @@ import {
 import dayjs from 'dayjs';
 import { usePodcastCategories, usePodcastEpisodes, usePodcastScript } from '@/hooks/usePodcast';
 import { useUserSettings } from '@/hooks/useUserSettings';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { episodeLabels, player, toPlayerEpisode, usePlayer } from '@/hooks/usePlayer';
 import type { PodcastDuration, PodcastEpisodeDto } from '@/services/api';
 import type { PlayerSource } from '@/lib/player';
+import { formatDuration } from '@/lib/format';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ShareEpisode } from '@/components/podcast/ShareEpisode';
-import { BottomSheet } from '@/components/common/BottomSheet';
 
 const SUGGESTIONS = [
   'Macro / banques centrales',
@@ -59,12 +58,6 @@ const SOURCE_OPTIONS: { label: string; value: PlayerSource }[] = [
 
 /** Même limite que le BFF (validateString(name, 60)). */
 const CATEGORY_MAX_LENGTH = 60;
-
-function formatDuration(sec: number): string {
-  const min = Math.floor(sec / 60);
-  const rest = sec % 60;
-  return rest > 0 ? `${min} min ${String(rest).padStart(2, '0')}` : `${min} min`;
-}
 
 function SectionTitle({ id, children }: { id: string; children: string }) {
   return (
@@ -181,7 +174,7 @@ function NowPlaying() {
 export default function Podcast() {
   const { token } = theme.useToken();
   const { message, modal } = AntApp.useApp();
-  const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const cats = usePodcastCategories();
   const eps = usePodcastEpisodes();
   const scriptMut = usePodcastScript();
@@ -194,7 +187,6 @@ export default function Podcast() {
   // Choix explicite sur cette page ; sinon la durée suit le réglage utilisateur.
   const [durationOverride, setDurationOverride] = useState<PodcastDuration | null>(null);
   const duration = durationOverride ?? settings.podcastDuration;
-  const [transcriptOf, setTranscriptOf] = useState<PodcastEpisodeDto | null>(null);
 
   const card = { background: token.colorBgContainer, borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}` };
 
@@ -226,6 +218,8 @@ export default function Podcast() {
         categories: [...categories],
         script: result.script,
         sources: result.sources,
+        sourceDetails: result.sourceDetails ?? [],
+        topics: result.topics ?? [],
         durationEstimateSec: result.durationEstimateSec,
       });
       message.success('Épisode prêt. Touchez « Écouter ».');
@@ -249,25 +243,6 @@ export default function Podcast() {
     });
 
   const suggestions = SUGGESTIONS.filter((s) => !categories.some((c) => c.toLowerCase() === s.toLowerCase()));
-
-  // Transcription : panneau du bas sur mobile, à droite sur PC.
-  const closeTranscript = () => setTranscriptOf(null);
-  const transcriptTitle = transcriptOf ? episodeLabels(transcriptOf).title : '';
-  const transcript = transcriptOf && (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.6 }}>{transcriptOf.script}</p>
-      <section aria-labelledby="sources-title" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <h3 id="sources-title" style={{ margin: 0, fontSize: 16 }}>
-          Sources ({transcriptOf.sources.length})
-        </h3>
-        {transcriptOf.sources.map((s) => (
-          <a key={s} href={s} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', fontSize: 13 }}>
-            {s}
-          </a>
-        ))}
-      </section>
-    </div>
-  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 760 }}>
@@ -388,53 +363,52 @@ export default function Podcast() {
                     aria-current={isCurrent ? 'true' : undefined}
                     onClick={() => (isCurrent ? player.toggle() : player.load(toPlayerEpisode(ep)))}
                     style={{
+                      width: 44,
+                      height: 44,
+                      flex: '0 0 auto',
+                      display: 'grid',
+                      placeItems: 'center',
+                      border: 0,
+                      borderRadius: 22,
+                      padding: 0,
+                      cursor: 'pointer',
+                      color: isCurrent ? '#0b0d12' : token.colorText,
+                      background: isCurrent ? token.colorPrimary : token.colorFillTertiary,
+                    }}
+                  >
+                    {isCurrent && current.status === 'playing' ? <PauseOutlined /> : <CaretRightFilled />}
+                  </button>
+                  <Link
+                    to={`/podcast/${ep.id}`}
+                    aria-label={`Détails de ${title}`}
+                    style={{
                       flex: 1,
                       minWidth: 0,
                       minHeight: 56,
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      gap: 2,
                       padding: '0 8px',
-                      border: 0,
-                      background: 'transparent',
-                      color: 'inherit',
-                      textAlign: 'left',
-                      font: 'inherit',
-                      cursor: 'pointer',
+                      color: token.colorText,
+                      textDecoration: 'none',
                     }}
                   >
+                    <span style={{ fontSize: 15, fontWeight: 600 }}>{title}</span>
                     <span
-                      aria-hidden
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 18,
-                        flex: '0 0 auto',
-                        display: 'grid',
-                        placeItems: 'center',
-                        color: isCurrent ? '#0b0d12' : token.colorText,
-                        background: isCurrent ? token.colorPrimary : token.colorFillTertiary,
-                      }}
+                      className="tabular-nums"
+                      style={{ fontSize: 13, color: token.colorTextSecondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                     >
-                      {isCurrent && current.status === 'playing' ? <PauseOutlined /> : <CaretRightFilled />}
+                      {formatDuration(ep.durationEstimateSec)} · {subtitle} · {ep.sources.length} sources
                     </span>
-                    <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ fontSize: 15, fontWeight: 600 }}>{title}</span>
-                      <span
-                        className="tabular-nums"
-                        style={{ fontSize: 13, color: token.colorTextSecondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                      >
-                        {formatDuration(ep.durationEstimateSec)} · {subtitle} · {ep.sources.length} sources
-                      </span>
-                    </span>
-                  </button>
+                  </Link>
                   <ShareEpisode episodeId={ep.id} label={`Partager ${title}`} />
                   <Dropdown
                     trigger={['click']}
                     placement="bottomRight"
                     menu={{
                       items: [
-                        { key: 'transcript', label: 'Transcription et sources', onClick: () => setTranscriptOf(ep) },
+                        { key: 'details', label: 'Détails', onClick: () => navigate(`/podcast/${ep.id}`) },
                         { type: 'divider' },
                         { key: 'delete', label: 'Supprimer', danger: true, onClick: () => confirmDelete(ep) },
                       ],
@@ -449,15 +423,6 @@ export default function Podcast() {
         )}
       </section>
 
-      {isMobile ? (
-        <BottomSheet open={transcriptOf !== null} onClose={closeTranscript} title={transcriptTitle}>
-          {transcript}
-        </BottomSheet>
-      ) : (
-        <Drawer open={transcriptOf !== null} onClose={closeTranscript} placement="right" width={520} title={transcriptTitle}>
-          {transcript}
-        </Drawer>
-      )}
     </div>
   );
 }

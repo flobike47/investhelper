@@ -38,7 +38,7 @@ export async function registerPodcastRoutes(app: FastifyInstance) {
     const isAuto = rawTarget === undefined || rawTarget === 'auto';
     const target = isAuto ? 'auto' : clampInt(rawTarget, 4, 1, MAX_PODCAST_MINUTES);
 
-    return generatePodcastScript(user.id, categories, target);
+    return generatePodcastScript(user.id, categories, target, req.log);
   });
 
   /**

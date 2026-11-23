@@ -7,6 +7,7 @@ import { enforceQuota } from '../ratelimit.js';
 import { requireUser } from '../auth.js';
 import { BadRequest, Gone, NotFound, validateUuid } from '../validation.js';
 import { DEFAULT_SPEAKERS, splitDialogue, ttsCacheKey } from '../tts.js';
+import { sanitizeSourceDetails, sanitizeTopics } from '../podcastDetails.js';
 
 const TOKEN_LEN = 16;
 const TOKEN_RE = /^[A-Za-z0-9]{8,64}$/;
@@ -32,6 +33,8 @@ interface SharedEpisode {
   categories: string[];
   script: string;
   sources: string[];
+  source_details: unknown;
+  topics: unknown;
   duration_estimate_sec: number;
   created_at: string;
 }
@@ -51,7 +54,7 @@ async function loadSharedEpisode(token: string): Promise<SharedEpisode> {
 
   const { data: ep, error: epErr } = await supabaseAdmin
     .from('podcast_episodes')
-    .select('id, date, categories, script, sources, duration_estimate_sec, created_at')
+    .select('id, date, categories, script, sources, source_details, topics, duration_estimate_sec, created_at')
     .eq('id', share.episode_id)
     .maybeSingle();
   if (epErr) throw epErr;
@@ -75,6 +78,9 @@ export async function registerShareRoutes(app: FastifyInstance) {
       categories: ep.categories,
       script: ep.script,
       sources: ep.sources,
+      // Re-validés à la lecture : une ligne ne doit jamais fuir un champ inattendu.
+      sourceDetails: ep.source_details ? sanitizeSourceDetails(ep.source_details) : null,
+      topics: ep.topics ? sanitizeTopics(ep.topics) : null,
       durationEstimateSec: ep.duration_estimate_sec,
       createdAt: ep.created_at,
       // Nombre de chunks audio HD : le lecteur demande chaque index à

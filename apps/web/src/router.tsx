@@ -79,6 +79,8 @@ export const router = createBrowserRouter(
             },
             { path: 'news', lazy: page(() => import('@/pages/News')) },
             { path: 'podcast', lazy: page(() => import('@/pages/Podcast')) },
+            // Détail d'un épisode : même section (onglet Podcast actif)
+            { path: 'podcast/:id', lazy: page(() => import('@/pages/PodcastEpisode')) },
             { path: 'settings', lazy: page(() => import('@/pages/Settings')) },
             // Anciennes adresses (favoris, liens partagés)
             { path: 'recommendations', element: <Navigate to="/ideas" replace /> },

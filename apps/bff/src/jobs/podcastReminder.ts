@@ -138,12 +138,14 @@ async function remindUser(
     const target: PodcastTarget =
       row.podcast_duration && row.podcast_duration !== 'auto' ? Number(row.podcast_duration) : 'auto';
     try {
-      const result = await generatePodcastScript(userId, categories, target);
+      const result = await generatePodcastScript(userId, categories, target, log);
       await insertEpisode(userId, {
         date: day,
         categories,
         script: result.script,
         sources: result.sources,
+        sourceDetails: result.sourceDetails,
+        topics: result.topics,
         durationEstimateSec: result.durationEstimateSec,
       });
       payload = readyPayload(categories, result.durationEstimateSec);

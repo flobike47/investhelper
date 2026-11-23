@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './providers/supabaseAdmin.js';
 import { BadRequest } from './validation.js';
+import type { SourceDetail, Topic } from './podcastDetails.js';
 
 /**
  * Enregistrement d'un épisode — partagé par POST /api/user/podcast/episodes
@@ -14,6 +15,9 @@ export interface NewEpisode {
   categories: string[];
   script: string;
   sources: string[];
+  /** null = non fourni (épisode antérieur aux détails). */
+  sourceDetails?: SourceDetail[] | null;
+  topics?: Topic[] | null;
   durationEstimateSec: number;
 }
 
@@ -40,6 +44,8 @@ export async function insertEpisode(
       categories: ep.categories,
       script: ep.script,
       sources: ep.sources,
+      source_details: ep.sourceDetails ?? null,
+      topics: ep.topics ?? null,
       duration_estimate_sec: ep.durationEstimateSec,
     })
     .select('id, created_at')
