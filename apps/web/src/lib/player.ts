@@ -83,6 +83,10 @@ export class PodcastPlayer {
   private hdUrls = new Map<string, string>();
   /** Jeton de chargement : une synthèse HD obsolète ne doit rien écraser. */
   private loadToken = 0;
+  /** Position HD (0..1) demandée avant que l'audio ait ses métadonnées. */
+  private pendingHdRatio: number | null = null;
+  /** Vrai une fois la durée du fichier courant connue (événement loadedmetadata). */
+  private metaReady = false;
 
   constructor(private deps: PlayerDeps) {
     const saved = safeGet(deps.storage, SOURCE_KEY);
@@ -106,13 +110,52 @@ export class PodcastPlayer {
 
   // ---- commandes ----
 
-  /** Charge un épisode et lance la lecture. Remplace l'épisode en cours. */
-  load(episode: PlayerEpisode) {
+  /**
+   * Charge un épisode et lance la lecture. Remplace l'épisode en cours.
+   * `startRatio` (0..1) place la lecture à cette position du script.
+   */
+  load(episode: PlayerEpisode, startRatio?: number) {
     this.halt();
     this.chunks = splitForTts(episode.script);
     this.chunkIndex = 0;
+    this.pendingHdRatio = null;
+    if (startRatio !== undefined) {
+      const r = clampRatio(startRatio);
+      if (this.state.source === 'hd') this.pendingHdRatio = r;
+      else this.chunkIndex = speechIndexFor(r, this.chunks.length);
+    }
     this.set({ ...INITIAL, source: this.state.source, episode });
     this.updateMediaSession();
+    this.play();
+  }
+
+  /**
+   * Place la lecture à `ratio` (0..1) de l'épisode puis lit.
+   * Avec `episode` différent de l'épisode courant, charge celui-ci à cette position.
+   * Voix HD : position en secondes = ratio × durée (mémorisée si l'audio n'est pas prêt).
+   * Voix de l'appareil : passage floor(ratio × nombre de passages).
+   */
+  seekTo(ratio: number, episode?: PlayerEpisode) {
+    const r = clampRatio(ratio);
+    if (episode && episode.id !== this.state.episode?.id) {
+      this.load(episode, r);
+      return;
+    }
+    if (!this.state.episode) return;
+
+    if (this.state.source === 'hd') {
+      this.pendingHdRatio = r;
+      this.applyHdSeek();
+      // Pendant une synthèse, la position est appliquée à la fin : ne pas relancer.
+      if (this.state.status !== 'loading') this.play();
+      return;
+    }
+
+    this.interruptSpeech();
+    this.chunkIndex = speechIndexFor(r, this.chunks.length);
+    // Repart d'un état propre : sans cela, play() reprendrait l'énoncé suspendu.
+    this.set({ status: 'idle' });
+    this.updateSpeechProgress();
     this.play();
   }
 
@@ -168,6 +211,7 @@ export class PodcastPlayer {
   close() {
     this.halt();
     this.chunks = [];
+    this.pendingHdRatio = null;
     // Libère les WAV synthétisés (plusieurs Mo chacun)
     this.hdUrls.forEach((url) => this.deps.revokeObjectUrl(url));
     this.hdUrls.clear();
@@ -242,7 +286,7 @@ export class PodcastPlayer {
     const audio = this.ensureAudio();
     const cached = this.hdUrls.get(episode.id);
     if (cached) {
-      if (audio.src !== cached) audio.src = cached;
+      this.setAudioSrc(audio, cached);
       if (this.state.status === 'ended') audio.currentTime = 0;
       await this.startAudio(audio);
       return;
@@ -256,7 +300,7 @@ export class PodcastPlayer {
       if (token !== this.loadToken) return; // épisode ou source changés entre-temps
       const url = this.deps.createObjectUrl(blob);
       this.hdUrls.set(episode.id, url);
-      audio.src = url;
+      this.setAudioSrc(audio, url);
       this.set({ loadingText: null });
       await this.startAudio(audio);
     } catch (e) {
@@ -270,6 +314,7 @@ export class PodcastPlayer {
   }
 
   private async startAudio(audio: AudioLike) {
+    this.applyHdSeek();
     try {
       await audio.play();
       this.set({ status: 'playing' });
@@ -280,9 +325,31 @@ export class PodcastPlayer {
     this.syncAudio();
   }
 
+  /** Change la source audio ; la durée n'est fiable qu'après loadedmetadata. */
+  private setAudioSrc(audio: AudioLike, url: string) {
+    if (audio.src === url) return;
+    this.metaReady = false;
+    audio.src = url;
+  }
+
+  /** Applique la position HD mémorisée dès que la durée du fichier courant est connue. */
+  private applyHdSeek() {
+    const a = this.audio;
+    if (this.pendingHdRatio === null || !a || !this.metaReady) return;
+    const d = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : 0;
+    if (!d) return;
+    a.currentTime = this.pendingHdRatio * d;
+    this.pendingHdRatio = null;
+    this.syncAudio();
+  }
+
   private ensureAudio(): AudioLike {
     if (this.audio) return this.audio;
     const a = this.deps.createAudio();
+    a.addEventListener('loadedmetadata', () => {
+      this.metaReady = true;
+      this.applyHdSeek();
+    });
     a.addEventListener('timeupdate', () => this.syncAudio());
     a.addEventListener('ended', () => this.set({ status: 'ended', progress: 1 }));
     a.addEventListener('pause', () => {
@@ -331,6 +398,17 @@ export class PodcastPlayer {
       /* Media Session partielle selon les navigateurs : non bloquant */
     }
   }
+}
+
+function clampRatio(r: number): number {
+  if (!Number.isFinite(r)) return 0;
+  return Math.min(1, Math.max(0, r));
+}
+
+/** Index du passage couvrant la position `ratio` (0..1) sur `count` passages. */
+function speechIndexFor(ratio: number, count: number): number {
+  if (count <= 0) return 0;
+  return Math.min(count - 1, Math.floor(ratio * count));
 }
 
 function safeGet(storage: PlayerDeps['storage'], key: string): string | null {

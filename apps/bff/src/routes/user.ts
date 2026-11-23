@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireUser } from '../auth.js';
 import { supabaseAdmin } from '../providers/supabaseAdmin.js';
 import { insertEpisode } from '../episodes.js';
+import { sanitizeSourceDetails, sanitizeTopics } from '../podcastDetails.js';
 import { isTimePassed, isValidTime, isValidTimeZone, localParts } from '../localTime.js';
 import { readQuota } from '../ratelimit.js';
 import {
@@ -43,6 +44,9 @@ interface EpisodeBody {
   categories: string[];
   script: string;
   sources: string[];
+  /** Optionnels : absents pour un client ancien (épisode sans détails). */
+  sourceDetails?: unknown;
+  topics?: unknown;
   durationEstimateSec: number;
 }
 
@@ -268,7 +272,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const user = requireUser(req);
     const { data, error } = await supabaseAdmin
       .from('podcast_episodes')
-      .select('id, date, categories, script, sources, duration_estimate_sec, created_at')
+      .select('id, date, categories, script, sources, source_details, topics, duration_estimate_sec, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(30);
@@ -280,6 +284,8 @@ export async function registerUserRoutes(app: FastifyInstance) {
         categories: e.categories,
         script: e.script,
         sources: e.sources,
+        sourceDetails: e.source_details ?? null,
+        topics: e.topics ?? null,
         durationEstimateSec: e.duration_estimate_sec,
         createdAt: e.created_at,
       })),
@@ -303,12 +309,17 @@ export async function registerUserRoutes(app: FastifyInstance) {
       100,
     );
     const duration = clampInt(ep.durationEstimateSec, 240, 0, 3600);
+    // Absents = client ancien : on stocke NULL, pas un tableau vide trompeur.
+    const sourceDetails = ep.sourceDetails === undefined ? null : sanitizeSourceDetails(ep.sourceDetails);
+    const topics = ep.topics === undefined ? null : sanitizeTopics(ep.topics);
 
     return insertEpisode(user.id, {
       date: ep.date,
       categories,
       script,
       sources,
+      sourceDetails,
+      topics,
       durationEstimateSec: duration,
     });
   });

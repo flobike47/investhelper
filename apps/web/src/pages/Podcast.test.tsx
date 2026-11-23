@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
-import { renderPage } from '@/hooks/test-utils';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { renderPage, renderWithProviders } from '@/hooks/test-utils';
 import { player } from '@/hooks/usePlayer';
 import { ApiError, type PodcastDuration, type PodcastEpisodeDto } from '@/services/api';
 import Podcast from './Podcast';
@@ -133,5 +134,37 @@ describe('Podcast', () => {
     expect(screen.getByRole('button', { name: 'Partager Brief du 20 octobre' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: "Plus d'actions pour Brief du 20 octobre" })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retirer la catégorie Luxe' })).toBeInTheDocument();
+  });
+
+  it('chaque épisode a un lien vers son détail, distinct du bouton Écouter', () => {
+    m.eps.episodes = [episode('e1', '2026-10-20T08:00:00Z')];
+    renderPage(<Podcast />);
+    expect(screen.getByRole('link', { name: 'Détails de Brief du 20 octobre' })).toHaveAttribute('href', '/podcast/e1');
+    expect(screen.getByRole('button', { name: 'Écouter Brief du 20 octobre' })).toBeInTheDocument();
+  });
+
+  it('le menu ⋯ propose Détails et plus de transcription', async () => {
+    m.eps.episodes = [episode('e1', '2026-10-20T08:00:00Z')];
+    renderPage(<Podcast />);
+    fireEvent.click(screen.getByRole('button', { name: "Plus d'actions pour Brief du 20 octobre" }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Détails' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Transcription et sources' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Supprimer' })).toBeInTheDocument();
+  });
+
+  it('ouvre la page détail de l’épisode depuis le menu ⋯', async () => {
+    m.eps.episodes = [episode('e1', '2026-10-20T08:00:00Z')];
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/podcast']}>
+        <Routes>
+          <Route path="/podcast" element={<Podcast />} />
+          <Route path="/podcast/:id" element={<p>Détail de e1</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: "Plus d'actions pour Brief du 20 octobre" }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Détails' }));
+    expect(await screen.findByText('Détail de e1')).toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ describe('onglet actif', () => {
     // La fiche ouverte depuis les Idées reste dans l'onglet Idées
     ['/ideas/asset/NVDA', ['Idées']],
     ['/podcast', ['Podcast']],
+    ['/podcast/abc-123', ['Podcast']],
     ['/news', ['Actualités']],
     // Réglages : accessible par l'avatar, aucun onglet actif
     ['/settings', []],
