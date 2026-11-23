@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { ShareEpisode } from '@/components/podcast/ShareEpisode';
 import { formatClock, formatDuration } from '@/lib/format';
 import { isHttpUrl, parseSourceUrl, type ParsedSource } from '@/lib/sources';
+import { currentTopicIndex } from '@/lib/topics';
 
 /** Nombre de sources visibles sous un sujet avant « Voir N autres sources ». */
 const SOURCES_SHOWN = 2;
@@ -68,15 +69,6 @@ function groupByTopic(topics: TopicDto[], items: SourceItem[]) {
     else perTopic[idx].push(item);
   }
   return { perTopic, others };
-}
-
-/** Index du sujet en cours : le dernier dont le début est déjà atteint, sinon -1. */
-function currentTopicIndex(topics: TopicDto[], progress: number): number {
-  let k = -1;
-  topics.forEach((t, i) => {
-    if (progress >= t.startRatio) k = i;
-  });
-  return k;
 }
 
 /** Une source : pastille du média, titre (2 lignes max), média · hôte, lien externe. */
@@ -251,7 +243,7 @@ function TopicsSection({
   const { token } = theme.useToken();
   const isCurrent = current.episode?.id === ep.id;
   const activeIndex = isCurrent && current.status !== 'idle' && current.status !== 'loading'
-    ? currentTopicIndex(topics, current.progress)
+    ? currentTopicIndex(topics, current.progress, current.step)
     : -1;
   const { perTopic, others } = groupByTopic(topics, items);
   const card = { background: token.colorBgContainer, borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}` };

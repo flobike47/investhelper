@@ -30,6 +30,12 @@ export interface PlayerState {
   status: PlayerStatus;
   /** Avancement 0..1. */
   progress: number;
+  /**
+   * Largeur d'un pas de lecture, en unités de `progress` : 1 / nb de passages
+   * en voix de l'appareil (on lit passage par passage), 0 en voix HD (continu).
+   * Le passage en cours couvre [progress, progress + step[.
+   */
+  step: number;
   /** Position lisible : « 1:42 / 4:10 » (HD) ou « Passage 3 / 12 » (appareil). */
   position: string;
   /** Message pendant la synthèse HD (« Synthèse 3/9… »). */
@@ -66,6 +72,7 @@ const INITIAL: Omit<PlayerState, 'source'> = {
   episode: null,
   status: 'idle',
   progress: 0,
+  step: 0,
   position: '',
   loadingText: null,
   error: null,
@@ -165,7 +172,7 @@ export class PodcastPlayer {
     const wasActive = this.state.status === 'playing' || this.state.status === 'loading';
     this.halt();
     this.chunkIndex = 0;
-    this.set({ source, status: 'idle', progress: 0, position: '', error: null, loadingText: null });
+    this.set({ source, status: 'idle', progress: 0, step: 0, position: '', error: null, loadingText: null });
     if (wasActive) this.play();
   }
 
@@ -277,7 +284,7 @@ export class PodcastPlayer {
 
   private updateSpeechProgress() {
     const total = this.chunks.length || 1;
-    this.set({ progress: this.chunkIndex / total, position: this.speechPosition(this.chunkIndex) });
+    this.set({ progress: this.chunkIndex / total, step: 1 / total, position: this.speechPosition(this.chunkIndex) });
   }
 
   // ---- voix HD ----
@@ -371,6 +378,7 @@ export class PodcastPlayer {
     const d = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : 0;
     this.set({
       progress: d ? a.currentTime / d : 0,
+      step: 0,
       position: d ? `${formatClock(a.currentTime)} / ${formatClock(d)}` : '',
     });
   }
